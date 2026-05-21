@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cjquant"
+version = "0.1.0"
+authors = [
+  { name="Chunjiang AMC", email="hi@chunjiang.dev" },
+]
+description = "A Quantitative Framework Built for OTC Funds and FOF Portfolio Management."
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GPL License",
+    "Operating System :: OS Independent",
+    "Topic :: Office/Business :: Financial :: Investment",
+]
+
+dependencies = [
+    "pandas>=1.3.0",
+    "numpy>=1.20.0",
+    "scipy>=1.7.0",
+    "scikit-learn>=1.0.0",
+    "plotly>=5.0.0",
+    "matplotlib>=3.4.0",
+    "seaborn>=0.11.0",
+    "akshare>=1.1.0",
+    "chardet>=4.0.0"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/imbue-bit/cjquant"
+"Bug Tracker" = "https://github.com/imbue-bit/cjquant/issues"
