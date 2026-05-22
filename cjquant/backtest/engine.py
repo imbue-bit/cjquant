@@ -20,6 +20,16 @@ class OTCBacktestEngine:
         self.market_data = market_data.copy()
         self.trading_dates = list(self.market_data.index.unique().sort_values())
         
+        # 预建 NAV 快查表（含前向填充，解决节假日/数据缺口时市值归零问题）
+        self._nav_cache: dict = {}  # {(date, fund_code): adj_nav}
+        for code in self.market_data['fund_code'].unique():
+            fund_df = self.market_data[self.market_data['fund_code'] == code]['adj_nav']
+            # 对交易日历进行前向填充：缺失的交易日用上一个有效净值代替
+            fund_series = fund_df.reindex(self.trading_dates, method='ffill')
+            for date, nav_val in fund_series.items():
+                if pd.notna(nav_val):
+                    self._nav_cache[(date, code)] = float(nav_val)
+        
         self.cash_account = TransitCashAccount(initial_cash)
         self.positions: Dict[str, FundPosition] = {}
         self.fee_model = OTCFeeModel()
@@ -39,12 +49,9 @@ class OTCBacktestEngine:
     def current_date(self) -> datetime:
         return self.trading_dates[self.current_date_idx]
 
-    def _get_nav(self, fund_code: str, date: datetime) -> float:
-        """获取某基金在某日的复权净值"""
-        subset = self.market_data[(self.market_data.index == date) & (self.market_data['fund_code'] == fund_code)]
-        if subset.empty:
-            return None
-        return subset.iloc[0]['adj_nav']
+    def _get_nav(self, fund_code: str, date) -> float:
+        """从预建缓存中查询复权净值（含前向填充，不会因节假日返回 None）"""
+        return self._nav_cache.get((date, fund_code), None)
 
     def _get_future_trading_date(self, start_date_idx: int, t_plus_days: int) -> datetime:
         """按照交易日历向后推算 (自动跳过节假日)"""
@@ -107,6 +114,12 @@ class OTCBacktestEngine:
         if nav is None:
             self.logger.warning(f"基金 {order.fund_code} 在 {confirm_date} 无净值数据，订单作废")
             order.status = 'REJECTED'
+            if order.direction == 'BUY':
+                self.cash_account.available_cash += order.order_value
+                self.cash_account.frozen_cash -= order.order_value
+            elif order.direction == 'SELL':
+                if order.fund_code in self.positions:
+                    self.positions[order.fund_code].frozen_shares -= order.order_shares
             return
 
         if order.fund_code not in self.positions:
@@ -155,7 +168,7 @@ class OTCBacktestEngine:
         
         for code, pos in self.positions.items():
             nav = self._get_nav(code, today)
-            if nav:
+            if nav is not None:
                 total_market_value += pos.total_shares * nav
 
         # 包含 transit 中的资金，因为这是属于投资者的钱，只是在途
@@ -165,6 +178,7 @@ class OTCBacktestEngine:
         self.daily_stats.append({
             'date': today,
             'available_cash': self.cash_account.available_cash,
+            'frozen_cash': self.cash_account.frozen_cash,
             'transit_cash': transit_value,
             'market_value': total_market_value,
             'total_assets': total_assets

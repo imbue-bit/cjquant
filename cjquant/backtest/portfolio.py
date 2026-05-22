@@ -1,3 +1,4 @@
+import math
 from datetime import datetime
 from collections import defaultdict
 from typing import Dict, List, Tuple
@@ -17,9 +18,13 @@ class TransitCashAccount:
             self.available_cash += arrived_cash
 
     def lock_cash(self, amount: float):
-        if self.available_cash < amount:
+        # 使用容差判断，防止浮点运算误差（如 1e-9 级别）导致虚假的资金不足
+        _EPSILON = 1e-6
+        shortfall = amount - self.available_cash
+        if shortfall > _EPSILON:
             raise ValueError(f"可用资金不足. 可用:{self.available_cash}, 需求:{amount}")
-        self.available_cash -= amount
+        # 若 shortfall 在容差内（浮点误差），clamp 到 0 继续
+        self.available_cash = max(0.0, self.available_cash - amount)
         self.frozen_cash += amount
 
     def add_to_transit(self, amount: float, settle_date: datetime):

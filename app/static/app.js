@@ -4,6 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let logPollingInterval = null;
     let portfolioPollingInterval = null;
     let activeTab = "tab-portfolio";
+    let researchFundPool = ["000001.OF", "000002.OF", "000003.OF"];
 
     // Initialize clock
     function updateClock() {
@@ -63,6 +64,8 @@ document.addEventListener("DOMContentLoaded", () => {
             loadStrategyOptions();
         } else if (tabId === "tab-research") {
             fetchStrategyFiles();
+        } else if (tabId === "tab-analytics") {
+            renderResearchFundPool();
         }
     }
 
@@ -290,16 +293,34 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const res = await fetch("/api/strategies");
             const data = await res.json();
-            const select = document.getElementById("task-strategy");
             
-            // Clear but keep first option
-            select.innerHTML = '<option value="">请选择策略文件...</option>';
-            data.strategies.forEach(file => {
-                const opt = document.createElement("option");
-                opt.value = file;
-                opt.textContent = file;
-                select.appendChild(opt);
-            });
+            // 1. Populate task-strategy select
+            const select = document.getElementById("task-strategy");
+            if (select) {
+                select.innerHTML = '<option value="">请选择策略文件...</option>';
+                data.strategies.forEach(file => {
+                    const opt = document.createElement("option");
+                    opt.value = file;
+                    opt.textContent = file;
+                    select.appendChild(opt);
+                });
+            }
+
+            // 2. Populate backtest-rebalance-freq select
+            const btSelect = document.getElementById("backtest-rebalance-freq");
+            if (btSelect) {
+                btSelect.innerHTML = `
+                    <option value="once">once (仅期初买入并持有)</option>
+                    <option value="monthly">monthly (按月等权再平衡)</option>
+                    <option value="monthly_rp">monthly_rp (按月风险平价再平衡)</option>
+                `;
+                data.strategies.forEach(file => {
+                    const opt = document.createElement("option");
+                    opt.value = file;
+                    opt.textContent = `User Strategy: ${file}`;
+                    btSelect.appendChild(opt);
+                });
+            }
         } catch (err) {
             console.error("加载下拉策略文件失败: ", err);
         }
@@ -340,7 +361,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 
                 tr.innerHTML = `
-                    <td style="font-weight:600; color:#fff;">${task.name}</td>
+                    <td style="font-weight:600; color:var(--text-primary);">${task.name}</td>
                     <td style="font-family: var(--font-mono); font-size:12px;">${task.strategy_file}</td>
                     <td>${task.schedule_value}秒</td>
                     <td>${switchHtml}</td>
@@ -533,6 +554,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 
                 list.appendChild(li);
             });
+            // Update strategy dropdown options
+            await loadStrategyOptions();
         } catch (err) {
             console.error("无法加载文件列表: ", err);
         }
@@ -549,7 +572,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         
         try {
-            const res = await fetch(`/api/strategies/${filename}`);
+            const res = await fetch(`/api/strategies/${encodeURIComponent(filename)}`);
             if (!res.ok) throw new Error("加载文件失败");
             const data = await res.json();
             
@@ -571,7 +594,7 @@ document.addEventListener("DOMContentLoaded", () => {
         btn.disabled = true;
         
         try {
-            const res = await fetch(`/api/strategies/${currentSelectedFile}`, {
+            const res = await fetch(`/api/strategies/${encodeURIComponent(currentSelectedFile)}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ code })
@@ -629,7 +652,101 @@ print("核心量化计算完毕。")
 
 
     // ----------------- TAB: ANALYTICS TOOLS -----------------
+
+    function renderResearchFundPool() {
+        // 1. Render chips
+        const chipsContainer = document.getElementById("research-fund-chips");
+        if (chipsContainer) {
+            chipsContainer.innerHTML = "";
+            researchFundPool.forEach(code => {
+                const chip = document.createElement("div");
+                chip.className = "chip";
+                chip.innerHTML = `<span>${code}</span><span class="chip-remove" data-code="${code}">&times;</span>`;
+                chip.querySelector(".chip-remove").addEventListener("click", () => {
+                    removeResearchFund(code);
+                });
+                chipsContainer.appendChild(chip);
+            });
+        }
+
+        // 2. Render FOF Optimizer checkboxes
+        const optContainer = document.getElementById("opt-funds-container");
+        if (optContainer) {
+            optContainer.innerHTML = "";
+            if (researchFundPool.length === 0) {
+                optContainer.innerHTML = `<span style="font-size: 11px; color: var(--text-muted); padding: 4px;">标的池为空，请先添加</span>`;
+            } else {
+                researchFundPool.forEach(code => {
+                    const label = document.createElement("label");
+                    label.className = "checkbox-item";
+                    label.innerHTML = `<input type="checkbox" name="opt-funds" value="${code}" checked> ${code}`;
+                    optContainer.appendChild(label);
+                });
+            }
+        }
+
+        // 3. Render Look-Through Weights inputs
+        const ltContainer = document.getElementById("look-through-weights-container");
+        if (ltContainer) {
+            ltContainer.innerHTML = "";
+            if (researchFundPool.length === 0) {
+                ltContainer.innerHTML = `<span style="font-size: 11px; color: var(--text-muted); padding: 4px;">标的池为空，请先添加</span>`;
+            } else {
+                const N = researchFundPool.length;
+                const equalWeight = Math.floor((1.0 / N) * 100) / 100;
+                const remainder = (1.0 - equalWeight * N).toFixed(2);
+                
+                researchFundPool.forEach((code, idx) => {
+                    const val = idx === N - 1 ? (equalWeight + parseFloat(remainder)).toFixed(2) : equalWeight.toFixed(2);
+                    const div = document.createElement("div");
+                    div.className = "input-row";
+                    div.innerHTML = `
+                        <label for="lt-w-${code}">${code} 权重:</label>
+                        <input type="number" class="lt-weight-input" data-code="${code}" id="lt-w-${code}" value="${val}" min="0" max="1" step="0.01" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); padding: 4px 6px; font-family: var(--font-mono); font-size: 11px;">
+                    `;
+                    ltContainer.appendChild(div);
+                });
+            }
+        }
+    }
+
+    function addResearchFund(code) {
+        code = code.trim().toUpperCase();
+        if (code === "") return;
+        // Basic format check or auto-append .OF if user typed just digits
+        if (/^\d{6}$/.test(code)) {
+            code = code + ".OF";
+        }
+        if (!researchFundPool.includes(code)) {
+            researchFundPool.push(code);
+            renderResearchFundPool();
+        }
+    }
+
+    function removeResearchFund(code) {
+        researchFundPool = researchFundPool.filter(c => c !== code);
+        renderResearchFundPool();
+    }
+
+    // Register active fund pool events
+    const inputFund = document.getElementById("input-research-fund");
+    const btnAddFund = document.getElementById("btn-add-research-fund");
     
+    if (btnAddFund && inputFund) {
+        btnAddFund.addEventListener("click", () => {
+            addResearchFund(inputFund.value);
+            inputFund.value = "";
+            inputFund.focus();
+        });
+        inputFund.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                addResearchFund(inputFund.value);
+                inputFund.value = "";
+            }
+        });
+    }
+
     // Optimizer Form
     document.getElementById("form-optimize").addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -682,21 +799,21 @@ print("核心量化计算完毕。")
     document.getElementById("form-look-through").addEventListener("submit", async (e) => {
         e.preventDefault();
         
-        const w1 = parseFloat(document.getElementById("lt-w1").value);
-        const w2 = parseFloat(document.getElementById("lt-w2").value);
-        const w3 = parseFloat(document.getElementById("lt-w3").value);
+        const inputs = document.querySelectorAll(".lt-weight-input");
+        const weights = {};
+        let sum = 0.0;
         
-        const sum = w1 + w2 + w3;
+        inputs.forEach(input => {
+            const code = input.getAttribute("data-code");
+            const val = parseFloat(input.value) || 0.0;
+            weights[code] = val;
+            sum += val;
+        });
+        
         if (Math.abs(sum - 1.0) > 0.0001) {
             alert(`配置权重加总不等于 100% (当前为: ${(sum*100).toFixed(1)}%)，请重新分配！`);
             return;
         }
-        
-        const weights = {
-            "000001.OF": w1,
-            "000002.OF": w2,
-            "000003.OF": w3
-        };
         
         try {
             const res = await fetch("/api/analytics/look_through", {
@@ -754,6 +871,157 @@ print("核心量化计算完毕。")
             alert(err.message);
         }
     });
+
+    // Correlation matrix rendering
+    const btnRunCorrelation = document.getElementById("btn-run-correlation");
+    if (btnRunCorrelation) {
+        btnRunCorrelation.addEventListener("click", async () => {
+            if (researchFundPool.length < 2) {
+                alert("请在标的池中添加至少两个基金进行相关性分析！");
+                return;
+            }
+            btnRunCorrelation.disabled = true;
+            btnRunCorrelation.textContent = "计算中...";
+            
+            try {
+                const res = await fetch("/api/analytics/correlation", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ funds: researchFundPool })
+                });
+                
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || "计算相关性失败");
+                }
+                
+                const data = await res.json();
+                renderCorrelationHeatmap(data.correlation, researchFundPool);
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                btnRunCorrelation.disabled = false;
+                btnRunCorrelation.textContent = "运行相关性计算";
+            }
+        });
+    }
+
+    function renderCorrelationHeatmap(corrList, funds) {
+        const thead = document.getElementById("corr-thead");
+        const tbody = document.getElementById("corr-tbody");
+        const resultsDiv = document.getElementById("correlation-results");
+        
+        if (!thead || !tbody || !resultsDiv) return;
+        
+        thead.innerHTML = "";
+        tbody.innerHTML = "";
+        
+        // 1. Build Header Row
+        const trHead = document.createElement("tr");
+        trHead.innerHTML = `<th class="corr-header-cell" style="text-align: left;">基金代码</th>`;
+        funds.forEach(code => {
+            const th = document.createElement("th");
+            th.className = "corr-header-cell";
+            th.textContent = code;
+            trHead.appendChild(th);
+        });
+        thead.appendChild(trHead);
+        
+        // 2. Build Body Rows
+        corrList.forEach(row => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `<td class="corr-cell" style="text-align: left; font-weight: 600; background-color: var(--bg-dark);">${row.fund}</td>`;
+            
+            funds.forEach(otherFund => {
+                const val = row[otherFund] !== undefined ? row[otherFund] : 0.0;
+                const td = document.createElement("td");
+                td.className = "corr-cell";
+                td.style.backgroundColor = getCorrColor(val);
+                td.textContent = val.toFixed(3);
+                td.title = `${row.fund} vs ${otherFund}: ${val.toFixed(4)}`;
+                tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+        });
+        
+        resultsDiv.classList.remove("hidden");
+    }
+
+    function getCorrColor(val) {
+        if (val > 0) {
+            return `rgba(15, 117, 196, ${val * 0.7})`; // Blue with max 70% opacity
+        } else if (val < 0) {
+            return `rgba(255, 59, 48, ${Math.abs(val) * 0.7})`; // Red with max 70% opacity
+        } else {
+            return "transparent";
+        }
+    }
+
+    // Performance comparison rendering
+    const btnRunPerformance = document.getElementById("btn-run-performance");
+    if (btnRunPerformance) {
+        btnRunPerformance.addEventListener("click", async () => {
+            if (researchFundPool.length === 0) {
+                alert("请先在标的池中添加基金标的！");
+                return;
+            }
+            btnRunPerformance.disabled = true;
+            btnRunPerformance.textContent = "计算中...";
+            
+            try {
+                const res = await fetch("/api/analytics/performance", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ funds: researchFundPool })
+                });
+                
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || "加载业绩对比失败");
+                }
+                
+                const data = await res.json();
+                renderPerformanceComparison(data.performance);
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                btnRunPerformance.disabled = false;
+                btnRunPerformance.textContent = "运行业绩指标对比";
+            }
+        });
+    }
+
+    function renderPerformanceComparison(perfList) {
+        const tbody = document.getElementById("perf-tbody");
+        const resultsDiv = document.getElementById("performance-results");
+        
+        if (!tbody || !resultsDiv) return;
+        
+        tbody.innerHTML = "";
+        
+        perfList.forEach(item => {
+            const tr = document.createElement("tr");
+            tr.style.borderBottom = "1px solid var(--border-color)";
+            
+            const annRetClass = item.ann_return >= 0 ? "text-up" : "text-down";
+            const annRetText = (item.ann_return >= 0 ? "+" : "") + (item.ann_return * 100).toFixed(2) + "%";
+            const volText = (item.volatility * 100).toFixed(2) + "%";
+            const sharpeClass = item.sharpe >= 1.0 ? "text-up" : (item.sharpe >= 0.0 ? "text-flat" : "text-down");
+            const sharpeText = item.sharpe.toFixed(2);
+            const maxDDText = (item.max_drawdown * 100).toFixed(2) + "%";
+            
+            tr.innerHTML = `
+                <td style="padding: 8px; font-family: var(--font-mono); font-weight: 600;">${item.fund}</td>
+                <td style="padding: 8px; text-align: right; font-weight: 600;" class="${annRetClass}">${annRetText}</td>
+                <td style="padding: 8px; text-align: right; font-family: var(--font-mono);">${volText}</td>
+                <td style="padding: 8px; text-align: right; font-weight: 600;" class="${sharpeClass}">${sharpeText}</td>
+                <td style="padding: 8px; text-align: right; font-family: var(--font-mono); color: var(--color-green);">${maxDDText}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+        
+        resultsDiv.classList.remove("hidden");
+    }
 
     // ----------------- TAB: FOF BACKTESTING -----------------
     
@@ -814,7 +1082,7 @@ print("核心量化计算完毕。")
             gridLine.setAttribute("y1", y);
             gridLine.setAttribute("x2", margin.left + chartWidth);
             gridLine.setAttribute("y2", y);
-            gridLine.setAttribute("stroke", val === 0 ? "rgba(255,255,255,0.25)" : "var(--border-color)");
+            gridLine.setAttribute("stroke", val === 0 ? "rgba(0,0,0,0.3)" : "var(--border-color)");
             gridLine.setAttribute("stroke-width", val === 0 ? "1" : "0.5");
             if (val !== 0) {
                 gridLine.setAttribute("stroke-dasharray", "2,2");
@@ -889,7 +1157,7 @@ print("核心量化计算完毕。")
         crosshair.setAttribute("y1", margin.top);
         crosshair.setAttribute("x2", 0);
         crosshair.setAttribute("y2", margin.top + chartHeight);
-        crosshair.setAttribute("stroke", "rgba(255, 255, 255, 0.4)");
+        crosshair.setAttribute("stroke", "rgba(0, 0, 0, 0.4)");
         crosshair.setAttribute("stroke-width", "1");
         crosshair.setAttribute("stroke-dasharray", "3,3");
         crosshair.style.display = "none";
@@ -897,7 +1165,7 @@ print("核心量化计算完毕。")
         
         const trackerDot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
         trackerDot.setAttribute("r", "4");
-        trackerDot.setAttribute("fill", "#fff");
+        trackerDot.setAttribute("fill", "var(--bg-panel)");
         trackerDot.setAttribute("stroke", "var(--color-red)");
         trackerDot.setAttribute("stroke-width", "2");
         trackerDot.style.display = "none";
@@ -908,7 +1176,7 @@ print("核心量化计算完毕。")
         tooltipGroup.style.display = "none";
         
         const tooltipRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-        tooltipRect.setAttribute("fill", "rgba(10, 14, 23, 0.95)");
+        tooltipRect.setAttribute("fill", "rgba(255, 255, 255, 0.95)");
         tooltipRect.setAttribute("stroke", "var(--border-color)");
         tooltipRect.setAttribute("stroke-width", "1");
         tooltipRect.setAttribute("width", "150");
@@ -925,7 +1193,7 @@ print("核心量化计算完毕。")
         const tooltipTextRet = document.createElementNS("http://www.w3.org/2000/svg", "text");
         tooltipTextRet.setAttribute("x", "8");
         tooltipTextRet.setAttribute("y", "32");
-        tooltipTextRet.setAttribute("fill", "#fff");
+        tooltipTextRet.setAttribute("fill", "var(--text-primary)");
         tooltipTextRet.setAttribute("font-size", "11");
         tooltipTextRet.setAttribute("font-weight", "600");
         tooltipGroup.appendChild(tooltipTextRet);
@@ -1078,7 +1346,7 @@ print("核心量化计算完毕。")
             dailyList.innerHTML = "";
             
             if (data.daily_stats.length === 0) {
-                dailyList.innerHTML = `<tr><td colspan="6" class="loading">暂无回测明细数据</td></tr>`;
+                dailyList.innerHTML = `<tr><td colspan="7" class="loading">暂无回测明细数据</td></tr>`;
             } else {
                 data.daily_stats.forEach(s => {
                     const tr = document.createElement("tr");
@@ -1088,6 +1356,7 @@ print("核心量化计算完毕。")
                     tr.innerHTML = `
                         <td style="color: var(--text-muted); font-size: 12px; height: 30px;"><span class="cell-text">${s.date}</span></td>
                         <td style="font-family: var(--font-mono);"><span class="cell-text">${s.available_cash.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}</span></td>
+                        <td style="font-family: var(--font-mono);"><span class="cell-text">${(s.frozen_cash || 0.0).toLocaleString("zh-CN", { minimumFractionDigits: 2 })}</span></td>
                         <td style="font-family: var(--font-mono);"><span class="cell-text">${s.transit_cash.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}</span></td>
                         <td style="font-family: var(--font-mono);"><span class="cell-text">${s.market_value.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}</span></td>
                         <td style="font-family: var(--font-mono); font-weight: 500;"><span class="cell-text text-blue">${s.total_assets.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}</span></td>

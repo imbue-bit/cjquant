@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CJQuant 场外量化策略调度与交易终端</title>
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Source+Code+Pro:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -13,7 +11,6 @@
         <!-- Sidebar Navigation (QMT style: completely flat, square, compact) -->
         <aside class="sidebar">
             <div class="sidebar-logo">
-                <div class="logo-icon">CJ</div>
                 <div class="logo-text">
                     <h2>CJQuant</h2>
                     <span>场外基金交易终端</span>
@@ -93,15 +90,15 @@
                             <div style="display: flex; gap: 15px; flex-wrap: wrap; border-left: 1px solid var(--border-color); padding-left: 20px; margin-left: 10px;">
                                 <div class="form-group" style="width: 120px;">
                                     <label for="edit-initial-cash">初始资金 (RMB)</label>
-                                    <input type="number" id="edit-initial-cash" value="0.00" step="1000" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: #fff; padding: 4px 6px; font-family: var(--font-mono); font-size: 11px;">
+                                    <input type="number" id="edit-initial-cash" value="0.00" step="1000" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); padding: 4px 6px; font-family: var(--font-mono); font-size: 11px;">
                                 </div>
                                 <div class="form-group" style="width: 120px;">
                                     <label for="edit-cash">可用资金 (RMB)</label>
-                                    <input type="number" id="edit-cash" value="0.00" step="1000" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: #fff; padding: 4px 6px; font-family: var(--font-mono); font-size: 11px;">
+                                    <input type="number" id="edit-cash" value="0.00" step="1000" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); padding: 4px 6px; font-family: var(--font-mono); font-size: 11px;">
                                 </div>
                                 <div class="form-group" style="width: 130px;">
                                     <label for="edit-pnl-override">人工盈亏调整 (RMB)</label>
-                                    <input type="number" id="edit-pnl-override" placeholder="自动计算" step="100" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: #fff; padding: 4px 6px; font-family: var(--font-mono); font-size: 11px;">
+                                    <input type="number" id="edit-pnl-override" placeholder="自动计算" step="100" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); padding: 4px 6px; font-family: var(--font-mono); font-size: 11px;">
                                 </div>
                                 <div style="display: flex; align-items: flex-end;">
                                     <button class="btn btn-primary btn-sm" id="btn-save-cash-info" style="height: 25px;">保存资金与盈亏</button>
@@ -301,7 +298,7 @@
                                 <div class="card-header">组合累计收益率走势图 (SVG 渲染)</div>
                                 <div class="card-body chart-body">
                                     <div class="chart-container" id="backtest-chart-container">
-                                        <svg id="backtest-svg" width="100%" height="320" style="background-color: #030508;">
+                                        <svg id="backtest-svg" width="100%" height="320" style="background-color: #f8fafc; border: 1px solid var(--border-color);">
                                             <text x="50%" y="50%" fill="var(--text-muted)" font-size="12" text-anchor="middle" id="svg-placeholder-text">暂无数据，请运行回测</text>
                                         </svg>
                                     </div>
@@ -319,6 +316,7 @@
                                     <tr>
                                         <th>日期</th>
                                         <th>可用现金 (RMB)</th>
+                                        <th>冻结资金 (RMB)</th>
                                         <th>在途现金 (RMB)</th>
                                         <th>证券市值 (RMB)</th>
                                         <th>资产总值 (RMB)</th>
@@ -326,7 +324,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="backtest-daily-list">
-                                    <tr><td colspan="6" class="loading">暂无回测明细数据</td></tr>
+                                    <tr><td colspan="7" class="loading">暂无回测明细数据</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -393,6 +391,26 @@
 
             <!-- TAB CONTENT: ANALYTICS TOOLS -->
             <section class="tab-content" id="tab-analytics">
+                <!-- Research Fund Pool Manager Card -->
+                <div class="card" style="margin-bottom: 10px;">
+                    <div class="card-header">研究基金标的池管理器</div>
+                    <div class="card-body" style="padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+                        <p class="section-desc" style="margin-bottom: 6px;">输入基金代码（如 110011.OF 或 510300.OF）并点击“添加标的”或按回车。标的池将自动同步到所有研究工具。</p>
+                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                            <div style="display: flex; gap: 4px; align-items: center;">
+                                <input type="text" id="input-research-fund" placeholder="如: 110011.OF" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); padding: 4px 6px; font-family: var(--font-mono); font-size: 11px; width: 140px; height: 25px;">
+                                <button class="btn btn-primary btn-sm" id="btn-add-research-fund" style="height: 25px; padding: 0 10px;">添加标的</button>
+                            </div>
+                            <div style="display: flex; gap: 6px; align-items: center; border-left: 1px solid var(--border-color); padding-left: 12px; margin-left: 4px;">
+                                <span style="font-size: 11px; color: var(--text-muted);">当前标的池:</span>
+                                <div id="research-fund-chips" style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+                                    <!-- Chips will be generated here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="analytics-grid">
                     <!-- Optimization Tool -->
                     <div class="card analytics-card">
@@ -402,19 +420,8 @@
                             <form id="form-optimize">
                                 <div class="form-group">
                                     <label>选择基金标的 (多选)</label>
-                                    <div class="checkbox-group">
-                                        <label class="checkbox-item">
-                                            <input type="checkbox" name="opt-funds" value="000001.OF" checked>
-                                            000001.OF (华夏成长混合)
-                                        </label>
-                                        <label class="checkbox-item">
-                                            <input type="checkbox" name="opt-funds" value="000002.OF" checked>
-                                            000002.OF (华夏债A)
-                                        </label>
-                                        <label class="checkbox-item">
-                                            <input type="checkbox" name="opt-funds" value="000003.OF" checked>
-                                            000003.OF (中证500ETF联接)
-                                        </label>
+                                    <div class="checkbox-group" id="opt-funds-container">
+                                        <!-- Dynamic checkboxes will be rendered here -->
                                     </div>
                                 </div>
                                 <div class="form-group">
@@ -451,18 +458,9 @@
                             <p class="section-desc">穿透解析 FOF 组合底层的股票行业暴露与风格暴露分布。</p>
                             <form id="form-look-through">
                                 <div class="form-group">
-                                    <label>输入当前组合权重</label>
-                                    <div class="input-row">
-                                        <label for="lt-w1">000001.OF 权重:</label>
-                                        <input type="number" id="lt-w1" value="0.4" min="0" max="1" step="0.1">
-                                    </div>
-                                    <div class="input-row">
-                                        <label for="lt-w2">000002.OF 权重:</label>
-                                        <input type="number" id="lt-w2" value="0.3" min="0" max="1" step="0.1">
-                                    </div>
-                                    <div class="input-row">
-                                        <label for="lt-w3">000003.OF 权重:</label>
-                                        <input type="number" id="lt-w3" value="0.3" min="0" max="1" step="0.1">
+                                    <label>输入当前组合权重 (需要加总等于 100%)</label>
+                                    <div id="look-through-weights-container" style="display: flex; flex-direction: column; gap: 6px;">
+                                        <!-- Dynamic inputs will be rendered here -->
                                     </div>
                                 </div>
                                 <button type="submit" class="btn btn-primary">执行穿透分析</button>
@@ -482,6 +480,49 @@
                                     <div class="exposure-bars" id="lt-style-bars">
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="analytics-grid" style="margin-top: 10px;">
+                    <!-- Correlation Heatmap -->
+                    <div class="card analytics-card">
+                        <div class="card-header">基金相关性热力图</div>
+                        <div class="card-body">
+                            <p class="section-desc">基于历史收益率计算的 Pearson 相关系数矩阵（近 252 交易日）。单元格背景颜色深度表示相关程度。</p>
+                            <button class="btn btn-primary" id="btn-run-correlation" style="margin-bottom: 12px;">运行相关性计算</button>
+                            <div class="result-box hidden" id="correlation-results" style="overflow-x: auto; padding: 0;">
+                                <table class="result-table" style="border-collapse: collapse; text-align: center; width: 100%; border: none;">
+                                    <thead id="corr-thead">
+                                    </thead>
+                                    <tbody id="corr-tbody">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Performance Comparison -->
+                    <div class="card analytics-card">
+                        <div class="card-header">基金业绩指标对比</div>
+                        <div class="card-body">
+                            <p class="section-desc">对比标的池中基金的年化收益率、年化波动率、夏普比率及最大回撤（近 252 交易日，无风险利率 2%）。</p>
+                            <button class="btn btn-primary" id="btn-run-performance" style="margin-bottom: 12px;">运行业绩指标对比</button>
+                            <div class="result-box hidden" id="performance-results" style="padding: 0; overflow-x: auto;">
+                                <table class="result-table" style="width: 100%; border-collapse: collapse; text-align: left;">
+                                    <thead>
+                                        <tr style="border-bottom: 1px solid var(--border-color);">
+                                            <th style="padding: 6px 8px;">基金代码</th>
+                                            <th style="padding: 6px 8px; text-align: right;">年化收益率</th>
+                                            <th style="padding: 6px 8px; text-align: right;">年化波动率</th>
+                                            <th style="padding: 6px 8px; text-align: right;">夏普比率</th>
+                                            <th style="padding: 6px 8px; text-align: right;">最大回撤</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="perf-tbody">
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>

@@ -47,11 +47,10 @@ class PublicFundProvider(BaseProvider):
         ).set_index('date').sort_index()
 
         df['累计净值'] = df['累计净值'].fillna(df['单位净值'])
+        # adj_nav 直接使用累计净值（累计净值已含历史分红，是公募标准复权口径）
+        # 不使用 日增长率 连乘重建，避免空值 fillna(0) 及接口字段不一致带来的曲线跳跃
         df['日增长率'] = pd.to_numeric(df['日增长率'], errors='coerce').fillna(0.0)
-
-        returns = df['日增长率'] / 100.0
-        base_nav = df['累计净值'].dropna().iloc[0] if not df['累计净值'].dropna().empty else 1.0
-        df[FundDataSchema.ADJ_NAV] = base_nav * (1 + returns).cumprod()
+        df[FundDataSchema.ADJ_NAV] = df['累计净值']
 
         standard_df = pd.DataFrame({
             FundDataSchema.CODE: fund_code,
