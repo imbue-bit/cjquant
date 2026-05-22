@@ -1,61 +1,38 @@
 {
   "account_id": "55002038",
-  "cash": 3323333.34,
-  "positions": [
-    {
-      "fund_code": "000001.OF",
-      "fund_name": "华夏成长混合",
-      "shares": 3833333.33,
-      "cost_nav": 1.0326,
-      "current_nav": 1.2857,
-      "market_value": 4928516.66
-    },
-    {
-      "fund_code": "000002.OF",
-      "fund_name": "华夏债A",
-      "shares": 4533333.33,
-      "cost_nav": 1.0132,
-      "current_nav": 1.0698,
-      "market_value": 4849760.0
-    }
-  ],
-  "total_value": 13101610.0,
+  "initial_cash": 0.0,
+  "cash": 0.0,
+  "positions": [],
+  "total_value": 0.0,
+  "pnl": 0.0,
   "transactions": [
     {
-      "time": "2026-05-22 21:05:35",
-      "fund_code": "000002.OF",
+      "time": "2026-05-22 21:29:54",
+      "fund_code": "000003.OF",
       "type": "申购",
       "amount": 3333333.33,
-      "shares": 3333333.33,
-      "fee": 5000.0,
-      "status": "已确认"
-    },
-    {
-      "time": "2026-05-22 21:05:35",
-      "fund_code": "000001.OF",
-      "type": "申购",
-      "amount": 3333333.33,
-      "shares": 3333333.33,
-      "fee": 5000.0,
-      "status": "已确认"
-    },
-    {
-      "time": "2026-05-20 14:30:00",
-      "fund_code": "000001.OF",
-      "type": "申购",
-      "amount": 625000.0,
-      "shares": 500000.0,
-      "fee": 937.5,
-      "status": "已确认"
-    },
-    {
-      "time": "2026-05-21 14:30:00",
-      "fund_code": "000002.OF",
-      "type": "申购",
-      "amount": 1260000.0,
-      "shares": 1200000.0,
+      "shares": 0.0,
       "fee": 0.0,
-      "status": "已确认"
+      "status": "已导出"
+    },
+    {
+      "time": "2026-05-22 21:29:54",
+      "fund_code": "000002.OF",
+      "type": "申购",
+      "amount": 3333333.33,
+      "shares": 0.0,
+      "fee": 0.0,
+      "status": "已导出"
+    },
+    {
+      "time": "2026-05-22 21:29:54",
+      "fund_code": "000001.OF",
+      "type": "申购",
+      "amount": 3333333.33,
+      "shares": 0.0,
+      "fee": 0.0,
+      "status": "已导出"
     }
-  ]
+  ],
+  "pnl_override": null
 }

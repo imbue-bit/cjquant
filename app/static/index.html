@@ -58,7 +58,7 @@
                     </div>
                     <div class="info-item">
                         <span class="lbl">环境:</span>
-                        <span class="val highlight">场外模拟柜台</span>
+                        <span class="val highlight">场外记账与执行</span>
                     </div>
                     <div class="info-item clock">
                         <span id="system-time">00:00:00</span>
@@ -71,8 +71,8 @@
                 <div class="dashboard-grid">
                     <!-- Value Card -->
                     <div class="card value-card">
-                        <div class="card-header">账户资产总览</div>
-                        <div class="value-summary">
+                        <div class="card-header">账户资产总览 与 资金配置</div>
+                        <div class="value-summary" style="display: flex; flex-wrap: wrap; gap: 25px; align-items: flex-end; padding: 15px;">
                             <div class="val-box">
                                 <label>总资产 (RMB)</label>
                                 <span class="number" id="portfolio-total">0.00</span>
@@ -81,14 +81,42 @@
                                 <label>可用资金 (RMB)</label>
                                 <span class="number text-blue" id="portfolio-cash">0.00</span>
                             </div>
+                            <div class="val-box">
+                                <label>总盈亏 (RMB)</label>
+                                <span class="number" id="portfolio-pnl" style="color: var(--color-red);">0.00</span>
+                            </div>
+                            
+                            <!-- Editable Cash Info Panel -->
+                            <div style="display: flex; gap: 15px; flex-wrap: wrap; border-left: 1px solid var(--border-color); padding-left: 20px; margin-left: 10px;">
+                                <div class="form-group" style="width: 120px;">
+                                    <label for="edit-initial-cash">初始资金 (RMB)</label>
+                                    <input type="number" id="edit-initial-cash" value="0.00" step="1000" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: #fff; padding: 4px 6px; font-family: var(--font-mono); font-size: 11px;">
+                                </div>
+                                <div class="form-group" style="width: 120px;">
+                                    <label for="edit-cash">可用资金 (RMB)</label>
+                                    <input type="number" id="edit-cash" value="0.00" step="1000" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: #fff; padding: 4px 6px; font-family: var(--font-mono); font-size: 11px;">
+                                </div>
+                                <div class="form-group" style="width: 130px;">
+                                    <label for="edit-pnl-override">人工盈亏调整 (RMB)</label>
+                                    <input type="number" id="edit-pnl-override" placeholder="自动计算" step="100" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: #fff; padding: 4px 6px; font-family: var(--font-mono); font-size: 11px;">
+                                </div>
+                                <div style="display: flex; align-items: flex-end;">
+                                    <button class="btn btn-primary btn-sm" id="btn-save-cash-info" style="height: 25px;">保存资金与盈亏</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Positions Table -->
                     <div class="card table-card full-width">
                         <div class="card-header">
-                            <span>当前持仓 (场外开放式基金)</span>
-                            <button class="btn btn-secondary btn-sm" id="btn-refresh-portfolio">刷新</button>
+                            <span>当前持仓 (场外开放式基金) - 可在表格中直接修改，支持实时更新净值</span>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-secondary btn-sm" id="btn-add-position">新增持仓</button>
+                                <button class="btn btn-secondary btn-sm" id="btn-refresh-navs" style="color: var(--color-orange); border-color: rgba(255, 149, 0, 0.3);">更新净值</button>
+                                <button class="btn btn-primary btn-sm" id="btn-save-positions">保存持仓修改</button>
+                                <button class="btn btn-secondary btn-sm" id="btn-refresh-portfolio">刷新</button>
+                            </div>
                         </div>
                         <div class="table-container">
                             <table>
@@ -99,12 +127,13 @@
                                         <th>持仓份额</th>
                                         <th>成本净值</th>
                                         <th>最新净值</th>
-                                        <th>当前市值 (RMB)</th>
-                                        <th>盈亏比</th>
+                                        <th style="width: 140px;">当前市值 (RMB)</th>
+                                        <th style="width: 100px;">盈亏比</th>
+                                        <th style="width: 80px; text-align: center;">操作</th>
                                     </tr>
                                 </thead>
                                 <tbody id="positions-list">
-                                    <tr><td colspan="7" class="loading">加载持仓数据中...</td></tr>
+                                    <tr><td colspan="8" class="loading">加载持仓数据中...</td></tr>
                                 </tbody>
                             </table>
                         </div>

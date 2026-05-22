@@ -18,6 +18,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from cjquant.optimizer.traditional import RiskParityOptimizer, MeanVarianceOptimizer
 from cjquant.optimizer.machine_learning import HRPOptimizer
 from cjquant.look_through.engine import LookThroughAnalyzer
+from cjquant.data.providers.public import PublicFundProvider
 
 app = FastAPI(title="CJQuant OTC Strategy & Portfolio Terminal")
 
@@ -49,12 +50,12 @@ def save_tasks(tasks: List[Dict[str, Any]]):
 # Helper to load portfolio
 def load_portfolio() -> Dict[str, Any]:
     if not os.path.exists(PORTFOLIO_JSON):
-        return {"account_id": "55002038", "cash": 10000000.0, "positions": [], "total_value": 10000000.0, "transactions": []}
+        return {"account_id": "55002038", "initial_cash": 0.0, "cash": 0.0, "positions": [], "total_value": 0.0, "pnl": 0.0, "transactions": []}
     try:
         with open(PORTFOLIO_JSON, "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception:
-        return {"account_id": "55002038", "cash": 10000000.0, "positions": [], "total_value": 10000000.0, "transactions": []}
+        return {"account_id": "55002038", "initial_cash": 0.0, "cash": 0.0, "positions": [], "total_value": 0.0, "pnl": 0.0, "transactions": []}
 
 # Helper to save portfolio
 def save_portfolio(p: Dict[str, Any]):
@@ -195,114 +196,88 @@ async def startup_event():
 # ----------------- CLOSED LOOP PORTFOLIO SYNC -----------------
 def sync_exported_orders_to_portfolio():
     """
-    Scans the execution directory for O32 exported orders (e.g. rp_rebalance_o32.csv),
-    applies them to the simulated portfolio to update cash, holdings and transaction logs,
+    Scans the execution directory for O32 and WeChat exported orders (e.g. *_o32.csv, *_wechat.csv),
+    records them in the transaction log as exported trades,
     and moves/renames the files to prevent double processing.
+    Does NOT automatically execute simulated fills to modify cash or holdings.
     """
+    import glob
     root_dir = os.path.dirname(BASE_DIR)
-    o32_file_path = os.path.join(root_dir, "rp_rebalance_o32.csv")
+    o32_files = glob.glob(os.path.join(root_dir, "*_o32.csv"))
+    wechat_files = glob.glob(os.path.join(root_dir, "*_wechat.csv"))
     
-    if not os.path.exists(o32_file_path):
-        return
+    portfolio = load_portfolio()
+    if "transactions" not in portfolio:
+        portfolio["transactions"] = []
+        
+    updated = False
     
-    print(f"[Portfolio Sync] Found exported order file: {o32_file_path}. Processing simulated fills...")
-    try:
-        # Load exported file
-        df = pd.read_csv(o32_file_path, encoding="gbk", dtype={"证券代码": str})
-        
-        portfolio = load_portfolio()
-        cash = portfolio["cash"]
-        positions_dict = {pos["fund_code"]: pos for pos in portfolio["positions"]}
-        
-        # Mapping fund names for simulation
-        fund_name_map = {
-            "000001": "华夏成长混合",
-            "000002": "华夏债A",
-            "000003": "南方中证500ETF联接"
-        }
-        
-        for _, row in df.iterrows():
-            raw_code = row["证券代码"]
-            fund_code = f"{raw_code.zfill(6)}.OF"
-            direction = row["业务类别"]
-            order_value = float(row["委托金额"])
-            order_shares = float(row["委托数量"])
-            
-            # Simple simulation: assume NAV = 1.00 for transactions
-            nav = 1.00
-            
-            if direction == "申购" and order_value > 0:
-                shares_filled = order_value / nav
-                fee = order_value * 0.0015 # 0.15% fee
-                gross_amount = order_value
-                net_deduction = gross_amount + fee
+    # Process O32 files
+    for file_path in o32_files:
+        if ".processed_" in file_path:
+            continue
+        try:
+            print(f"[Portfolio Sync] Found O32 exported order file: {file_path}. Recording transactions...")
+            df = pd.read_csv(file_path, encoding="gbk", dtype={"证券代码": str})
+            for _, row in df.iterrows():
+                raw_code = row["证券代码"]
+                fund_code = f"{raw_code.zfill(6)}.OF"
+                direction = row["业务类别"]
+                order_value = float(row["委托金额"])
+                order_shares = float(row["委托数量"])
                 
-                if cash >= net_deduction:
-                    cash -= net_deduction
-                    # Update or add position
-                    if fund_code in positions_dict:
-                        positions_dict[fund_code]["shares"] += shares_filled
-                        # recalculate cost
-                        total_cost = (positions_dict[fund_code]["shares"] - shares_filled) * positions_dict[fund_code]["cost_nav"] + gross_amount
-                        positions_dict[fund_code]["cost_nav"] = round(total_cost / positions_dict[fund_code]["shares"], 4)
-                    else:
-                        positions_dict[fund_code] = {
-                            "fund_code": fund_code,
-                            "fund_name": fund_name_map.get(raw_code, f"场外基金_{raw_code}"),
-                            "shares": shares_filled,
-                            "cost_nav": nav,
-                            "current_nav": nav,
-                            "market_value": shares_filled * nav
-                        }
-                    
-                    portfolio["transactions"].insert(0, {
-                        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "fund_code": fund_code,
-                        "type": "申购",
-                        "amount": gross_amount,
-                        "shares": round(shares_filled, 2),
-                        "fee": round(fee, 2),
-                        "status": "已确认"
-                    })
-                    
-            elif direction == "赎回" and order_shares > 0:
-                if fund_code in positions_dict and positions_dict[fund_code]["shares"] >= order_shares:
-                    positions_dict[fund_code]["shares"] -= order_shares
-                    gross_receive = order_shares * nav
-                    fee = gross_receive * 0.005 # 0.5% redemption fee
-                    net_receive = gross_receive - fee
-                    cash += net_receive
-                    
-                    if positions_dict[fund_code]["shares"] <= 0.01:
-                        positions_dict.pop(fund_code)
-                        
-                    portfolio["transactions"].insert(0, {
-                        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "fund_code": fund_code,
-                        "type": "赎回",
-                        "amount": gross_receive,
-                        "shares": round(order_shares, 2),
-                        "fee": round(fee, 2),
-                        "status": "已确认"
-                    })
-        
-        # Rebuild positions list
-        portfolio["positions"] = list(positions_dict.values())
-        portfolio["cash"] = round(cash, 2)
-        
-        # Update total values based on navs
-        total_market_val = sum(pos["shares"] * pos.get("current_nav", 1.0) for pos in portfolio["positions"])
-        portfolio["total_value"] = round(cash + total_market_val, 2)
-        
+                portfolio["transactions"].insert(0, {
+                    "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "fund_code": fund_code,
+                    "type": direction,
+                    "amount": order_value if direction == "申购" else round(order_shares * 1.0, 2),
+                    "shares": round(order_shares, 2),
+                    "fee": 0.0,
+                    "status": "已导出"
+                })
+            updated = True
+            
+            # Rename the file to prevent double-processing
+            processed_path = file_path + f".processed_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            os.rename(file_path, processed_path)
+            print(f"[Portfolio Sync] Processed and renamed O32 file: {processed_path}")
+        except Exception as e:
+            print(f"[Portfolio Sync Error] Failed to process O32 file {file_path}: {e}")
+            
+    # Process WeChat files
+    for file_path in wechat_files:
+        if ".processed_" in file_path:
+            continue
+        try:
+            print(f"[Portfolio Sync] Found WeChat exported order file: {file_path}. Recording transactions...")
+            df = pd.read_csv(file_path, encoding="utf-8-sig", dtype={"基金代码": str})
+            for _, row in df.iterrows():
+                raw_code = row["基金代码"]
+                fund_code = f"{raw_code.zfill(6)}.OF"
+                direction = row["交易类型"]
+                amount = float(row["发生金额"])
+                shares = float(row["发生份额"])
+                
+                portfolio["transactions"].insert(0, {
+                    "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "fund_code": fund_code,
+                    "type": direction,
+                    "amount": amount,
+                    "shares": round(shares, 2),
+                    "fee": 0.0,
+                    "status": "已导出"
+                })
+            updated = True
+            
+            # Rename the file to prevent double-processing
+            processed_path = file_path + f".processed_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            os.rename(file_path, processed_path)
+            print(f"[Portfolio Sync] Processed and renamed WeChat file: {processed_path}")
+        except Exception as e:
+            print(f"[Portfolio Sync Error] Failed to process WeChat file {file_path}: {e}")
+            
+    if updated:
         save_portfolio(portfolio)
-        
-        # Rename the file to prevent double-processing
-        processed_path = o32_file_path + f".processed_{datetime.now().strftime('%M%S')}"
-        os.rename(o32_file_path, processed_path)
-        print(f"[Portfolio Sync] Successfully processed orders and renamed file to {processed_path}")
-        
-    except Exception as e:
-        print(f"[Portfolio Sync Error] Failed to process orders: {e}")
 
 # ----------------- PYDANTIC SCHEMAS -----------------
 class TaskCreate(BaseModel):
@@ -323,6 +298,19 @@ class OptimizeRequest(BaseModel):
 
 class LookThroughRequest(BaseModel):
     weights: Dict[str, float]
+
+class PositionItem(BaseModel):
+    fund_code: str
+    fund_name: str
+    shares: float
+    cost_nav: float
+    current_nav: float
+
+class PortfolioUpdateRequest(BaseModel):
+    initial_cash: float
+    cash: float
+    pnl_override: Optional[float] = None
+    positions: List[PositionItem]
 
 # ----------------- API ENDPOINTS -----------------
 
@@ -467,16 +455,84 @@ def get_portfolio():
     portfolio = load_portfolio()
     
     # Recalculate totals dynamically
-    total_val = portfolio["cash"]
-    for pos in portfolio["positions"]:
-        # Add random microscopic tick variation to NAV for active market sensation
-        import random
-        tick = random.choice([-0.001, -0.0005, 0.0, 0.0005, 0.001, 0.0015])
-        pos["current_nav"] = round(pos["current_nav"] * (1 + tick), 4)
+    total_val = portfolio.get("cash", 0.0)
+    for pos in portfolio.get("positions", []):
         pos["market_value"] = round(pos["shares"] * pos["current_nav"], 2)
         total_val += pos["market_value"]
         
     portfolio["total_value"] = round(total_val, 2)
+    
+    # Apply override if specified, otherwise total_value - initial_cash
+    pnl_override = portfolio.get("pnl_override")
+    if pnl_override is not None:
+        portfolio["pnl"] = round(pnl_override, 2)
+    else:
+        portfolio["pnl"] = round(portfolio["total_value"] - portfolio.get("initial_cash", 0.0), 2)
+        
+    save_portfolio(portfolio)
+    return portfolio
+
+@app.post("/api/portfolio/update")
+def update_portfolio(req: PortfolioUpdateRequest):
+    portfolio = load_portfolio()
+    portfolio["initial_cash"] = round(req.initial_cash, 2)
+    portfolio["cash"] = round(req.cash, 2)
+    portfolio["pnl_override"] = round(req.pnl_override, 2) if req.pnl_override is not None else None
+    
+    new_positions = []
+    total_val = req.cash
+    for pos in req.positions:
+        mv = round(pos.shares * pos.current_nav, 2)
+        total_val += mv
+        new_positions.append({
+            "fund_code": pos.fund_code,
+            "fund_name": pos.fund_name,
+            "shares": round(pos.shares, 4),
+            "cost_nav": round(pos.cost_nav, 4),
+            "current_nav": round(pos.current_nav, 4),
+            "market_value": mv
+        })
+        
+    portfolio["positions"] = new_positions
+    portfolio["total_value"] = round(total_val, 2)
+    
+    if req.pnl_override is not None:
+        portfolio["pnl"] = round(req.pnl_override, 2)
+    else:
+        portfolio["pnl"] = round(total_val - req.initial_cash, 2)
+        
+    save_portfolio(portfolio)
+    return portfolio
+
+@app.post("/api/portfolio/refresh_navs")
+def refresh_navs():
+    portfolio = load_portfolio()
+    provider = PublicFundProvider()
+    
+    total_val = portfolio.get("cash", 0.0)
+    
+    for pos in portfolio.get("positions", []):
+        code = pos["fund_code"]
+        clean_code = code.split(".")[0]
+        try:
+            df = provider.fetch(clean_code)
+            if not df.empty:
+                latest_nav = float(df.iloc[-1]["unit_nav"])
+                pos["current_nav"] = round(latest_nav, 4)
+        except Exception as e:
+            print(f"Error fetching NAV for fund {code}: {e}")
+            
+        pos["market_value"] = round(pos["shares"] * pos["current_nav"], 2)
+        total_val += pos["market_value"]
+        
+    portfolio["total_value"] = round(total_val, 2)
+    
+    pnl_override = portfolio.get("pnl_override")
+    if pnl_override is not None:
+        portfolio["pnl"] = round(pnl_override, 2)
+    else:
+        portfolio["pnl"] = round(portfolio["total_value"] - portfolio.get("initial_cash", 0.0), 2)
+        
     save_portfolio(portfolio)
     return portfolio
 

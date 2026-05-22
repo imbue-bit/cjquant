@@ -67,40 +67,84 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ----------------- TAB: PORTFOLIO -----------------
-    async function fetchPortfolio() {
+    async function fetchPortfolio(force = false) {
         try {
             const res = await fetch("/api/portfolio");
             if (!res.ok) throw new Error("加载持仓失败");
             const data = await res.json();
             
-            // Update summary cards
+            // Check if user is currently editing cash or table inputs
+            const isEditing = document.activeElement && (
+                document.activeElement.classList.contains("table-input") ||
+                document.activeElement.id === "edit-initial-cash" ||
+                document.activeElement.id === "edit-cash" ||
+                document.activeElement.id === "edit-pnl-override"
+            );
+            
+            // Update summary displays (always safe to overwrite)
             document.getElementById("portfolio-total").textContent = data.total_value.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             document.getElementById("portfolio-cash").textContent = data.cash.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             
-            // Render Positions
-            const posList = document.getElementById("positions-list");
-            posList.innerHTML = "";
-            
-            if (data.positions.length === 0) {
-                posList.innerHTML = `<tr><td colspan="7" class="loading">目前无任何场外基金持仓</td></tr>`;
+            // Render PnL with colors
+            const pnlBox = document.getElementById("portfolio-pnl");
+            pnlBox.textContent = (data.pnl >= 0 ? "+" : "") + data.pnl.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            if (data.pnl >= 0) {
+                pnlBox.style.color = "var(--color-red)";
+                pnlBox.className = "number text-up";
             } else {
-                data.positions.forEach(pos => {
-                    const pnl = ((pos.current_nav - pos.cost_nav) / pos.cost_nav) * 100;
-                    const pnlClass = pnl >= 0 ? "badge-red" : "badge-green";
-                    const pnlText = (pnl >= 0 ? "+" : "") + pnl.toFixed(2) + "%";
-                    
-                    const tr = document.createElement("tr");
-                    tr.innerHTML = `
-                        <td style="font-family: var(--font-mono); font-weight: 500;">${pos.fund_code}</td>
-                        <td style="font-weight: 500; color: #fff;">${pos.fund_name}</td>
-                        <td>${pos.shares.toLocaleString("zh-CN", { maximumFractionDigits: 2 })}</td>
-                        <td>${pos.cost_nav.toFixed(4)}</td>
-                        <td>${pos.current_nav.toFixed(4)}</td>
-                        <td style="font-family: var(--font-mono); font-weight: 500; color: var(--color-blue);">${pos.market_value.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}</td>
-                        <td><span class="badge ${pnlClass}">${pnlText}</span></td>
-                    `;
-                    posList.appendChild(tr);
-                });
+                pnlBox.style.color = "var(--color-green)";
+                pnlBox.className = "number text-down";
+            }
+            
+            // Only update input box values and positions table if not editing, or if forced
+            if (!isEditing || force) {
+                const initCashInput = document.getElementById("edit-initial-cash");
+                if (document.activeElement !== initCashInput || force) {
+                    initCashInput.value = data.initial_cash;
+                }
+                const cashInput = document.getElementById("edit-cash");
+                if (document.activeElement !== cashInput || force) {
+                    cashInput.value = data.cash;
+                }
+                const pnlOverrideInput = document.getElementById("edit-pnl-override");
+                if (document.activeElement !== pnlOverrideInput || force) {
+                    pnlOverrideInput.value = data.pnl_override !== null ? data.pnl_override : "";
+                }
+                
+                // Render positions rows
+                const posList = document.getElementById("positions-list");
+                posList.innerHTML = "";
+                
+                if (data.positions.length === 0) {
+                    posList.innerHTML = `<tr><td colspan="8" class="loading">目前无任何场外基金持仓</td></tr>`;
+                } else {
+                    data.positions.forEach(pos => {
+                        const pnl = pos.cost_nav > 0 ? ((pos.current_nav - pos.cost_nav) / pos.cost_nav) * 100 : 0.0;
+                        const pnlClass = pnl >= 0 ? "badge-red" : "badge-green";
+                        const pnlText = (pnl >= 0 ? "+" : "") + pnl.toFixed(2) + "%";
+                        
+                        const tr = document.createElement("tr");
+                        tr.innerHTML = `
+                            <td><input type="text" class="table-input pos-code" value="${pos.fund_code}"></td>
+                            <td><input type="text" class="table-input pos-name" value="${pos.fund_name}"></td>
+                            <td><input type="number" class="table-input pos-shares" value="${pos.shares}" step="0.01"></td>
+                            <td><input type="number" class="table-input pos-cost-nav" value="${pos.cost_nav}" step="0.0001"></td>
+                            <td><input type="number" class="table-input pos-current-nav" value="${pos.current_nav}" step="0.0001"></td>
+                            <td><span class="cell-text font-mono" style="color: var(--color-blue); font-weight: 500;">${pos.market_value.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}</span></td>
+                            <td><span class="badge ${pnlClass}">${pnlText}</span></td>
+                            <td style="text-align: center;"><button class="btn-delete-pos" style="color: var(--color-red); border: none; background: transparent; cursor: pointer; padding: 6px 10px; font-weight: 600;">删除</button></td>
+                        `;
+                        
+                        tr.querySelector(".btn-delete-pos").addEventListener("click", () => {
+                            tr.remove();
+                            if (posList.children.length === 0) {
+                                posList.innerHTML = `<tr><td colspan="8" class="loading">目前无任何场外基金持仓</td></tr>`;
+                            }
+                        });
+                        
+                        posList.appendChild(tr);
+                    });
+                }
             }
             
             // Render Transactions
@@ -115,13 +159,13 @@ document.addEventListener("DOMContentLoaded", () => {
                     
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
-                        <td style="color: var(--text-muted); font-size: 12px;">${tx.time}</td>
-                        <td style="font-family: var(--font-mono);">${tx.fund_code}</td>
-                        <td><span class="badge ${typeClass}">${tx.type}</span></td>
-                        <td style="font-weight: 500;">${tx.amount.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}</td>
-                        <td>${tx.shares.toLocaleString("zh-CN")}</td>
-                        <td>${tx.fee.toFixed(2)}</td>
-                        <td><span class="badge badge-green">${tx.status}</span></td>
+                        <td style="color: var(--text-muted); font-size: 12px; height: 30px;"><span class="cell-text">${tx.time}</span></td>
+                        <td style="font-family: var(--font-mono);"><span class="cell-text">${tx.fund_code}</span></td>
+                        <td><span class="cell-text"><span class="badge ${typeClass}">${tx.type}</span></span></td>
+                        <td style="font-weight: 500;"><span class="cell-text">${tx.amount.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}</span></td>
+                        <td><span class="cell-text">${tx.shares.toLocaleString("zh-CN")}</span></td>
+                        <td><span class="cell-text">${tx.fee.toFixed(2)}</span></td>
+                        <td><span class="cell-text"><span class="badge badge-green">${tx.status}</span></span></td>
                     `;
                     txList.appendChild(tr);
                 });
@@ -131,7 +175,114 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    document.getElementById("btn-refresh-portfolio").addEventListener("click", fetchPortfolio);
+    async function savePortfolioData() {
+        const initialCash = parseFloat(document.getElementById("edit-initial-cash").value) || 0.0;
+        const cash = parseFloat(document.getElementById("edit-cash").value) || 0.0;
+        const pnlOverrideVal = document.getElementById("edit-pnl-override").value;
+        const pnlOverride = pnlOverrideVal.trim() === "" ? null : parseFloat(pnlOverrideVal);
+        
+        // Collect positions
+        const positionRows = document.querySelectorAll("#positions-list tr");
+        const positions = [];
+        
+        positionRows.forEach(row => {
+            if (row.querySelector(".loading") || row.cells.length < 8) {
+                return;
+            }
+            
+            const code = row.querySelector(".pos-code").value.trim();
+            const name = row.querySelector(".pos-name").value.trim();
+            const shares = parseFloat(row.querySelector(".pos-shares").value) || 0.0;
+            const costNav = parseFloat(row.querySelector(".pos-cost-nav").value) || 0.0;
+            const currentNav = parseFloat(row.querySelector(".pos-current-nav").value) || 0.0;
+            
+            if (code !== "") {
+                positions.push({
+                    fund_code: code,
+                    fund_name: name,
+                    shares: shares,
+                    cost_nav: costNav,
+                    current_nav: currentNav
+                });
+            }
+        });
+        
+        try {
+            const res = await fetch("/api/portfolio/update", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    initial_cash: initialCash,
+                    cash: cash,
+                    pnl_override: pnlOverride,
+                    positions: positions
+                })
+            });
+            
+            if (!res.ok) throw new Error("保存资产信息失败");
+            
+            alert("保存资产持仓信息成功！");
+            fetchPortfolio(true); // force reload to redraw the calculated values
+        } catch (err) {
+            alert(err.message);
+        }
+    }
+
+    async function refreshNavs() {
+        const btn = document.getElementById("btn-refresh-navs");
+        btn.disabled = true;
+        btn.textContent = "更新中...";
+        
+        try {
+            const res = await fetch("/api/portfolio/refresh_navs", { method: "POST" });
+            if (!res.ok) throw new Error("刷新净值失败");
+            
+            alert("实时净值更新成功！");
+            await fetchPortfolio(true); // force reload to draw new net assets
+        } catch (err) {
+            alert(err.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "更新净值";
+        }
+    }
+
+    function addPositionRow() {
+        const posList = document.getElementById("positions-list");
+        const emptyRow = posList.querySelector("td.loading");
+        if (emptyRow) {
+            posList.innerHTML = "";
+        }
+        
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td><input type="text" class="table-input pos-code" value="" placeholder="如: 000001.OF"></td>
+            <td><input type="text" class="table-input pos-name" value="" placeholder="如: 华夏成长混合"></td>
+            <td><input type="number" class="table-input pos-shares" value="0.00" step="0.01"></td>
+            <td><input type="number" class="table-input pos-cost-nav" value="1.0000" step="0.0001"></td>
+            <td><input type="number" class="table-input pos-current-nav" value="1.0000" step="0.0001"></td>
+            <td><span class="cell-text font-mono" style="color: var(--text-muted); font-style: italic;">保存后计算</span></td>
+            <td><span class="badge badge-blue">0.00%</span></td>
+            <td style="text-align: center;"><button class="btn-delete-pos" style="color: var(--color-red); border: none; background: transparent; cursor: pointer; padding: 6px 10px; font-weight: 600;">删除</button></td>
+        `;
+        
+        tr.querySelector(".btn-delete-pos").addEventListener("click", () => {
+            tr.remove();
+            if (posList.children.length === 0) {
+                posList.innerHTML = `<tr><td colspan="8" class="loading">目前无任何场外基金持仓</td></tr>`;
+            }
+        });
+        
+        posList.appendChild(tr);
+        tr.querySelector(".pos-code").focus();
+    }
+
+    // Register button event listeners
+    document.getElementById("btn-refresh-portfolio").addEventListener("click", () => fetchPortfolio(true));
+    document.getElementById("btn-save-cash-info").addEventListener("click", savePortfolioData);
+    document.getElementById("btn-save-positions").addEventListener("click", savePortfolioData);
+    document.getElementById("btn-refresh-navs").addEventListener("click", refreshNavs);
+    document.getElementById("btn-add-position").addEventListener("click", addPositionRow);
 
 
     // ----------------- TAB: SCHEDULER -----------------

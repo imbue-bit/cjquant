@@ -18,7 +18,10 @@ class PublicFundProvider(BaseProvider):
     def _get_raw_data(self, fund_code: str, indicator: str) -> pd.DataFrame:
         for attempt in range(self.max_retries):
             try:
-                df = ak.fund_open_fund_info_em(fund=fund_code, indicator=indicator)
+                try:
+                    df = ak.fund_open_fund_info_em(symbol=fund_code, indicator=indicator)
+                except TypeError:
+                    df = ak.fund_open_fund_info_em(fund=fund_code, indicator=indicator)
                 if df is None or df.empty:
                     raise ValueError(f"接口返回空数据 (Indicator: {indicator})")
                 return df

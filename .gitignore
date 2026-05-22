@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Strategy transaction outputs and processed logs
+*.csv
+*.processed_*
+
