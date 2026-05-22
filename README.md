@@ -10,6 +10,24 @@ cjquant 是一个专为国内资管机构（公募FOF、理财子、券商资管
 
 ---
 
+## 安装
+
+安装方式：
+
+```bash
+pip install cjquant
+```
+
+安装之后，您可以直接进行开发，或者启动投研终端：
+
+```bash
+git clone http://github.com/imbue-bit/cjquant/
+cd cjquant
+python ./app/gui.py
+```
+
+---
+
 ## 功能特性
 
 ### 1. 场外资产真实撮合引擎
@@ -213,15 +231,6 @@ executor.execute(channels=["o32", "wechat"], file_prefix="otc_orders")
 
 通过修改配置文件，即可无缝切换底层数据源，上层策略代码无需做任何修改。
 
----
-
-## 安装
-
-安装方式：
-
-```bash
-pip install cjquant
-```
 
 ---
 
