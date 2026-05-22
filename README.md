@@ -42,95 +42,121 @@ cjquant 是一个专为国内资管机构（公募FOF、理财子、券商资管
 
 ### 考虑国内场外真实流动性与费率的 FOF 回测
 
-传统量化框架默认买入即成交，而在实际 FOF 管理中，流动性占用与申赎损耗对组合收益影响巨大。调用 `cjquant.backtest` 可精确还原这一过程。
+传统量化框架默认买入即成交，而在实际 FOF 管理中，流动性占用与申赎损耗对组合收益影响巨大。使用 `cjquant.backtest` 可以精确还原这一过程。
 
 ```python
 import pandas as pd
+from cjquant.data.pipeline import DataPipeline
 from cjquant.backtest.engine import OTCBacktestEngine
-from cjquant.backtest.fee import TieredFeeModel
-from cjquant.backtest.slippage import LiquiditySlippageModel
+from cjquant.backtest.fee import OTCFeeModel
+from cjquant.backtest.slippage import SquareRootSlippage
 
-public_fund_fee = TieredFeeModel(
-    subscription_rate=0.0015,  # 前端申购费 0.15%
-    redemption_tiers=[
-        (7, 0.015),            # 持有 <7 天，赎回费 1.5%
-        (30, 0.0075),          # 持有 <30 天，赎回费 0.75%
-        (365, 0.005),          # 持有 <1 年，赎回费 0.5%
-        (float('inf'), 0.0)    # 大于 1 年免申购费
-    ]
-)
+# 1. 准备市场数据
+pipeline = DataPipeline()
+fund_1 = pipeline.get_public_fund("000001.OF", start_date="2023-01-01", end_date="2023-12-31")
+fund_2 = pipeline.get_public_fund("000002.OF", start_date="2023-01-01", end_date="2023-12-31")
+market_data = pd.concat([fund_1, fund_2])
 
-# 初始化引擎，设定 T+N 流动性规则
+# 2. 设置费率与冲击成本模型
+fee_model = OTCFeeModel(buy_fee_rate=0.0015)
+fee_model.set_sell_tiers([
+    (7, 0.015),          # 持有 <7 天，赎回费 1.5%
+    (30, 0.0075),        # 持有 <30 天，赎回费 0.75%
+    (365, 0.005),        # 持有 <1 年，赎回费 0.5%
+    (float('inf'), 0.0)  # 大于 1 年免赎回费
+])
+
+slippage_model = SquareRootSlippage(impact_lambda=0.05, fund_aum=1e8)
+
+# 3. 初始化回测引擎，设定 T+1 确认，T+3 到账
 engine = OTCBacktestEngine(
-    initial_capital=50000000,
-    fee_model=public_fund_fee,
-    slippage_model=LiquiditySlippageModel(buy_delay=1, sell_delay=3) # T+1确认, T+3到账
+    market_data=market_data,
+    initial_cash=10000000.0,
+    t_plus_confirm=1,
+    t_plus_settle=3,
+    slippage_model=slippage_model
 )
+engine.fee_model = fee_model
 
-# 月频动量轮动
-def target_momentum_strategy(context):
-    if context.is_month_end:
-        # 获取多只公募基金对齐后的历史净值
-        nav_data = context.data.history(context.universe, fields='nav', window=60)
+# 4. 模拟策略回测循环
+while engine.current_date_idx < len(engine.trading_dates):
+    current_date = engine.current_date
+    
+    # 示例策略：在第 10 个交易日买入，在第 100 个交易日卖出
+    if engine.current_date_idx == 10:
+        engine.submit_order('000001.OF', 'BUY', value=5000000)
+        engine.submit_order('000002.OF', 'BUY', value=4000000)
+    elif engine.current_date_idx == 100:
+        shares_1 = engine.positions['000001.OF'].total_available_shares
+        shares_2 = engine.positions['000002.OF'].total_available_shares
+        engine.submit_order('000001.OF', 'SELL', shares=shares_1)
+        engine.submit_order('000002.OF', 'SELL', shares=shares_2)
         
-        # 计算动量因子并生成目标权重
-        momentum = nav_data.iloc[-1] / nav_data.iloc[0] - 1
-        target_weights = momentum[momentum > 0].apply(lambda x: 1.0 / len(momentum))
-        
-        # 测算赎回费损耗、计算在途资金占用、触发订单
-        context.order_target_portfolio(target_weights)
+    engine.step()
 
-result = engine.run(target_momentum_strategy, start='2018-01-01', end='2023-12-31')
+# 5. 导出回测结果
+engine.export_trades_csv('trades.csv')
+engine.export_results_csv('results.csv')
 ```
 
 ### 基金持仓与风格穿透
 
-针对国内私募基金不披露底仓的黑盒特性，调用 `cjquant.look_through.rbsa_engine` 模块，通过滚动净值序列反推真实的因子暴露度。
+针对国内私募基金不披露底仓的黑盒特性，调用 `cjquant.look_through` 模块，通过滚动净值序列反推真实的因子暴露度（RBSA）。
 
 ```python
+import pandas as pd
 from cjquant.data.pipeline import DataPipeline
-from cjquant.look_through.rbsa_engine import RBSAEngine
-from cjquant.look_through.model import RollingOLSModel
+from cjquant.look_through.engine import LookThroughAnalyzer
 
-# 加载目标私募的周频净值与基准因子系列（如：中证500、沪深300、国债指数）
+# 1. 准备基金收益率与因子收益率数据
 pipeline = DataPipeline()
-fund_nav = pipeline.load('P00001.PF')
-factors = pipeline.load_factors(['000905.SH', '000300.SH', 'H11001.CSI'])
+fund_df = pipeline.get_public_fund("000001.OF", start_date="2023-01-01", end_date="2023-12-31")
+factor_df = pipeline.get_public_fund("000300.OF", start_date="2023-01-01", end_date="2023-12-31")
 
-# 初始化 RBSA 引擎
-rbsa = RBSAEngine(
-    fund_returns=fund_nav.pct_change(),
-    factor_returns=factors.pct_change(),
-    model=RollingOLSModel(window=52, constrained=True) # 带非负与归一化约束的 52 周滚动回归
-)
+fund_returns = fund_df['adj_nav'].pct_change().dropna()
+factor_returns = pd.DataFrame({'HS300': factor_df['adj_nav'].pct_change()}).dropna()
 
-# 拟合并获取动态仓位暴露矩阵
-exposures = rbsa.fit_exposures()
+# 2. 初始化穿透分析器 (RBSA 模式)
+analyzer = LookThroughAnalyzer(method='RBSA', factor_returns=factor_returns)
 
-# 检测风格漂移 (例如：名义上的市场中性产品，其实际多头敞口是否超限)
-drift_warnings = rbsa.detect_style_drift(threshold=0.15)
+# 3. 进行风格分析（滚动窗口设为 60 天）
+result = analyzer.run(fund_returns, window=60)
+
+print(f"基金代码: {result.fund_code}")
+print(f"分析日期: {result.analysis_date}")
+print(f"R-Squared (解释度): {result.r_squared:.4f}")
+print("因子暴露权重:", result.exposures)
 ```
 
-### 3. 基于机器学习的前沿组合优化
+### 3. 基于机器学习的前沿组合优化与可视化报告
 
-调用 `cjquant.optimizer.machine_learning` 处理传统均值方差模型在非标数据中协方差矩阵极易失效的问题。
+使用 `cjquant.optimizer.machine_learning` 处理传统均值方差模型在非标数据中协方差矩阵极易失效的问题，并通过 `cjquant.visualizer` 生成可视化分析报告。
 
 ```python
-from cjquant.data.aligner import FrequencyAligner
+import pandas as pd
+from cjquant.data.pipeline import DataPipeline
 from cjquant.optimizer.machine_learning import HRPOptimizer
-from cjquant.visualizer.plotter import AllocationPlotter
+from cjquant.visualizer.reporter import CJQuantReporter
 
-# 对齐私募(周频)与公募(日频)序列
-aligner = FrequencyAligner(method='cubic_spline')
-aligned_returns = aligner.align([private_funds, public_funds], target_freq='W')
+# 1. 对齐多只基金的收益率序列
+pipeline = DataPipeline()
+# create_universe_panel 自动调用 DataAligner 进行对齐治理
+aligned_nav = pipeline.create_universe_panel(
+    public_codes=["000001.OF", "000002.OF"],
+    start_date="2023-01-01",
+    freq="B",
+    resample_method="ffill"
+)
+aligned_returns = aligned_nav.pct_change().dropna()
 
-# 使用层次风险平价算法分配权重
-# 1. 距离矩阵计算 2. 层次聚类 3. 递归二分配置
+# 2. 使用层次风险平价算法 (HRP) 分配权重
 optimizer = HRPOptimizer(aligned_returns)
 optimal_weights = optimizer.optimize()
+print("HRP 优化权重:\n", optimal_weights)
 
-# 可视化输出聚类树状图及最终权重
-AllocationPlotter.plot_dendrogram(optimizer.cluster_linkage)
+# 3. 生成可视化 HTML 报告
+reporter = CJQuantReporter(stats_csv_path='results.csv', trades_csv_path='trades.csv')
+reporter.generate_html('report.html')
 ```
 
 ---

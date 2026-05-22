@@ -3,7 +3,7 @@ import uuid
 import logging
 from datetime import datetime
 from typing import Dict, List, Optional
-from .models import Order, TradeRecord
+from .model import Order, TradeRecord
 from .portfolio import TransitCashAccount, FundPosition
 from .fee import OTCFeeModel
 from .slippage import BaseSlippage, ZeroSlippage

@@ -1,7 +1,7 @@
 from datetime import datetime
 from collections import defaultdict
 from typing import Dict, List, Tuple
-from .models import PositionLot
+from .model import PositionLot
 from .fee import OTCFeeModel
 
 class TransitCashAccount:

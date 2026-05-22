@@ -13,7 +13,7 @@ class OTCFeeModel:
         ]
 
     def set_sell_tiers(self, tiers: List[Tuple[int, float]]):
-        self.sell_tiers = sorted(tiers, key=lambda x: x[0])
+        self.sell_fee_tiers = sorted(tiers, key=lambda x: x[0])
 
     def get_buy_fee(self, gross_amount: float) -> float:
         return gross_amount * self.buy_fee_rate
