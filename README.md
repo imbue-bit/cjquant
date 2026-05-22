@@ -159,6 +159,25 @@ reporter = CJQuantReporter(stats_csv_path='results.csv', trades_csv_path='trades
 reporter.generate_html('report.html')
 ```
 
+### 4. 导出 O32 格式下单列表进行实盘/模拟指令对接
+
+调用 `cjquant.execution` 模块，可直接将回测产生的交易记录或待交易订单，导出为符合国内金融机构恒生 O32 投资系统导入格式要求的 CSV/Excel 指令单。
+
+```python
+from cjquant.execution import O32OrderExporter
+
+# 1. 初始化 O32 导出器，配置产品组合编号与资产单元
+exporter = O32OrderExporter(
+    portfolio_id="FOF001",
+    asset_unit="FOF001_01",
+    strip_suffix=True  # 自动去除代码中的市场后缀 (例如将 000001.OF 转为 000001)
+)
+
+# 2. 传入回测引擎中的未执行订单队列进行导出 (或使用 engine.trade_history 导出成交确认单)
+# 支持导出为中文 Windows 环境下 O32 默认接收的 GBK 编码 CSV
+exporter.export(engine.pending_orders, "o32_orders.csv", format="csv", encoding="gbk")
+```
+
 ---
 
 ## 数据生态与系统集成
