@@ -27,6 +27,7 @@ python ./app/gui.py
 ```
 
 ![](showcase.png)
+![](showcase2.png)
 
 ---
 
@@ -49,6 +50,9 @@ python ./app/gui.py
 针对场外基金“黑盒化”特性，提供多层次的因子解析：
 *   基于净值的风格分析 (RBSA - Returns-Based Style Analysis)：内置带约束的非负最小二乘法（NNLS）与滚动多元回归。支持自定义因子库（如 Fama-French 3/5 因子，或申万一级行业指数），实时测算基金动态仓位与风格漂移水平。
 *   基于持仓的归因测算 (HBSA - Holdings-Based Style Analysis)：解析公募季报/半年报底层真实持仓。支持经典的 Brinson-Fachler 归因模型（资产配置/个股选择/交互效应分离）。
+
+![](showcase3.png)
+![](showcase4.png)
 
 ### 4. 机资产配置优化
 专为中低频调仓设计的组合优化算法库：
@@ -220,6 +224,8 @@ executor.sell("000002.OF", shares=50000.0)   # 赎回 5 万份
 # 导出的文件为 ./otc_orders_o32.csv 和 ./otc_orders_wechat.csv
 executor.execute(channels=["o32", "wechat"], file_prefix="otc_orders")
 ```
+
+![](showcase5.png)
 
 ---
 
