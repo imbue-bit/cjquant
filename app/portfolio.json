@@ -1,38 +1,10 @@
 {
-  "account_id": "55002038",
+  "account_id": "0",
   "initial_cash": 0.0,
   "cash": 0.0,
   "positions": [],
   "total_value": 0.0,
   "pnl": 0.0,
-  "transactions": [
-    {
-      "time": "2026-05-22 21:29:54",
-      "fund_code": "000003.OF",
-      "type": "申购",
-      "amount": 3333333.33,
-      "shares": 0.0,
-      "fee": 0.0,
-      "status": "已导出"
-    },
-    {
-      "time": "2026-05-22 21:29:54",
-      "fund_code": "000002.OF",
-      "type": "申购",
-      "amount": 3333333.33,
-      "shares": 0.0,
-      "fee": 0.0,
-      "status": "已导出"
-    },
-    {
-      "time": "2026-05-22 21:29:54",
-      "fund_code": "000001.OF",
-      "type": "申购",
-      "amount": 3333333.33,
-      "shares": 0.0,
-      "fee": 0.0,
-      "status": "已导出"
-    }
-  ],
+  "transactions": [],
   "pnl_override": null
 }
