@@ -159,23 +159,46 @@ reporter = CJQuantReporter(stats_csv_path='results.csv', trades_csv_path='trades
 reporter.generate_html('report.html')
 ```
 
-### 4. 导出下单交易指令进行实盘/模拟对接
+### 4. 导出 O32 格式下单列表进行实盘/模拟指令对接
 
-调用 `cjquant.execution` 模块，可以直接将回测产生的交易记录或待交易订单，直接生成并导出为可用于对接柜台/交易终端导入的交易指令 CSV/Excel 文件。
+调用 `cjquant.execution` 模块，可直接将回测产生的交易记录或待交易订单，导出为符合国内金融机构恒生 O32 投资系统导入格式要求的 CSV/Excel 指令单。
 
 ```python
-from cjquant.execution import OrderExecutor
+from cjquant.execution import O32OrderExporter
 
-# 1. 初始化交易执行器，配置产品组合编号与资产单元
-executor = OrderExecutor(
+# 1. 初始化 O32 导出器，配置产品组合编号与资产单元
+exporter = O32OrderExporter(
     portfolio_id="FOF001",
     asset_unit="FOF001_01",
     strip_suffix=True  # 自动去除代码中的市场后缀 (例如将 000001.OF 转为 000001)
 )
 
-# 2. 下单并直接导出 CSV 格式的下单列表文件
-# 支持配置 gbk 编码以匹配主流中文环境终端
-executor.place_orders(engine.pending_orders, "orders.csv", format="csv", encoding="gbk")
+# 2. 传入回测引擎中的未执行订单队列进行导出 (或使用 engine.trade_history 导出成交确认单)
+# 支持导出为中文 Windows 环境下 O32 默认接收的 GBK 编码 CSV
+exporter.export(engine.pending_orders, "o32_orders.csv", format="csv", encoding="gbk")
+```
+
+### 5. 场外基金高级下单 API (OTCExecutor)
+
+提供针对场外基金（申购、赎回）的极简下单 API，底层支持多种导出通道（如恒生 O32 格式、微信理财通格式等），默认保存到运行目录：
+
+```python
+from cjquant.execution import OTCExecutor
+
+# 1. 初始化场外下单执行器，默认输出目录为当前路径
+executor = OTCExecutor(
+    portfolio_id="FOF002",
+    asset_unit="FOF002_01",
+    output_dir="./"
+)
+
+# 2. 提交申购金额或赎回份额 (只暴露 buy/sell API)
+executor.buy("000001.OF", amount=100000.0)  # 申购 10 万元
+executor.sell("000002.OF", shares=50000.0)   # 赎回 5 万份
+
+# 3. 执行下单，同时导出为 O32 与微信理财通格式，输出到运行目录
+# 导出的文件为 ./otc_orders_o32.csv 和 ./otc_orders_wechat.csv
+executor.execute(channels=["o32", "wechat"], file_prefix="otc_orders")
 ```
 
 ---
