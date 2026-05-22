@@ -26,6 +26,8 @@ cd cjquant
 python ./app/gui.py
 ```
 
+![](showcase.png)
+
 ---
 
 ## 功能特性
