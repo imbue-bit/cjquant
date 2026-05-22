@@ -1,3 +1,5 @@
+![](banner.png)
+
 # cjquant
 
 *The Quantitative Framework for China OTC Funds & Asset Allocation*
