@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CJQuant 场外量化策略调度与交易终端</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Source+Code+Pro:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation (QMT style) -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <div class="logo-icon">CJ</div>
+                <div class="logo-text">
+                    <h2>CJQuant</h2>
+                    <span>场外基金量化终端</span>
+                </div>
+            </div>
+            
+            <nav class="sidebar-menu">
+                <button class="menu-item active" data-tab="tab-portfolio">
+                    <span class="icon">💼</span>
+                    <span class="label">我的账户</span>
+                </button>
+                <button class="menu-item" data-tab="tab-scheduler">
+                    <span class="icon">⏰</span>
+                    <span class="label">策略调度</span>
+                </button>
+                <button class="menu-item" data-tab="tab-research">
+                    <span class="icon">🔬</span>
+                    <span class="label">模型研究</span>
+                </button>
+                <button class="menu-item" data-tab="tab-analytics">
+                    <span class="icon">📊</span>
+                    <span class="label">投研分析</span>
+                </button>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="status-indicator">
+                    <span class="dot live"></span>
+                    <span class="text">系统在线 (8000)</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Workspace Area -->
+        <main class="workspace">
+            <!-- Header bar -->
+            <header class="header">
+                <div class="header-left">
+                    <span class="title-tag">极速模式</span>
+                    <span class="breadcrumb" id="current-view-title">我的账户</span>
+                </div>
+                <div class="header-right">
+                    <div class="info-item">
+                        <span class="lbl">资金账号:</span>
+                        <span class="val" id="header-account">55002038</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="lbl">环境:</span>
+                        <span class="val highlight">场外模拟柜台</span>
+                    </div>
+                    <div class="info-item clock">
+                        <span id="system-time">00:00:00</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- TAB CONTENT: MY PORTFOLIO -->
+            <section class="tab-content active" id="tab-portfolio">
+                <div class="dashboard-grid">
+                    <!-- Value Card -->
+                    <div class="card value-card">
+                        <div class="card-header">账户资产总览</div>
+                        <div class="value-summary">
+                            <div class="val-box">
+                                <label>总资产 (RMB)</label>
+                                <span class="number" id="portfolio-total">0.00</span>
+                            </div>
+                            <div class="val-box">
+                                <label>可用资金 (RMB)</label>
+                                <span class="number text-blue" id="portfolio-cash">0.00</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Positions Table -->
+                    <div class="card table-card full-width">
+                        <div class="card-header">
+                            <span>当前持仓 (场外开放式基金)</span>
+                            <button class="btn btn-secondary btn-sm" id="btn-refresh-portfolio">⚡ 刷新</button>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>基金代码</th>
+                                        <th>基金名称</th>
+                                        <th>持仓份额</th>
+                                        <th>成本净值</th>
+                                        <th>最新净值</th>
+                                        <th>当前市值 (RMB)</th>
+                                        <th>盈亏比</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="positions-list">
+                                    <tr><td colspan="7" class="loading">加载持仓数据中...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Transactions Log -->
+                    <div class="card table-card full-width">
+                        <div class="card-header">历史交易流水 (自动接收策略导出确认)</div>
+                        <div class="table-container max-height-300">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>交易时间</th>
+                                        <th>基金代码</th>
+                                        <th>交易类型</th>
+                                        <th>发生金额 (RMB)</th>
+                                        <th>确认份额</th>
+                                        <th>手续费 (RMB)</th>
+                                        <th>状态</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="transactions-list">
+                                    <tr><td colspan="7" class="loading">加载交易流水中...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB CONTENT: STRATEGY SCHEDULER -->
+            <section class="tab-content" id="tab-scheduler">
+                <div class="scheduler-container">
+                    <div class="grid-1-3">
+                        <!-- Add Task Form -->
+                        <div class="card form-card">
+                            <div class="card-header">新建策略调度任务</div>
+                            <form id="form-create-task" class="flex-form">
+                                <div class="form-group">
+                                    <label for="task-name">任务名称</label>
+                                    <input type="text" id="task-name" placeholder="如: 每日资产配置调整" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="task-strategy">策略脚本 (.py)</label>
+                                    <select id="task-strategy" required>
+                                        <option value="">请选择策略文件...</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="task-interval">调度间隔 (秒)</label>
+                                    <input type="number" id="task-interval" value="300" min="5" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary">➕ 创建调度任务</button>
+                            </form>
+                        </div>
+                        
+                        <!-- Tasks List -->
+                        <div class="card table-card">
+                            <div class="card-header">运行中的策略与调度任务</div>
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>任务名称</th>
+                                            <th>策略文件</th>
+                                            <th>调度周期</th>
+                                            <th>调度状态</th>
+                                            <th>运行状态</th>
+                                            <th>上次运行</th>
+                                            <th>下次运行</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tasks-list">
+                                        <tr><td colspan="8" class="loading">加载任务列表中...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Live logs box -->
+                    <div class="card log-card">
+                        <div class="card-header">
+                            <span id="log-header-title">任务运行控制台日志 (选中任务查看)</span>
+                            <button class="btn btn-secondary btn-sm" id="btn-refresh-logs" disabled>🔄 刷新日志</button>
+                        </div>
+                        <pre class="log-console" id="log-console-box">--- 请点击上表中的任务“日志”按钮以查看实时执行日志 ---</pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB CONTENT: MODEL RESEARCH -->
+            <section class="tab-content" id="tab-research">
+                <div class="research-workspace">
+                    <!-- File directory tree on left -->
+                    <div class="research-sidebar">
+                        <div class="dir-header">
+                            <span>策略文件目录</span>
+                            <button class="btn btn-secondary btn-sm" id="btn-new-strategy">➕ 新建</button>
+                        </div>
+                        <ul class="file-list" id="strategy-file-list">
+                            <li class="loading">加载文件...</li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Editor and Output pane on right -->
+                    <div class="research-main">
+                        <div class="editor-header">
+                            <span id="editor-filename">未选择文件</span>
+                            <button class="btn btn-primary btn-sm" id="btn-save-strategy" disabled>💾 保存修改</button>
+                        </div>
+                        <div class="editor-container">
+                            <textarea id="code-editor" spellcheck="false" placeholder="# 选择或创建一个策略文件开始编辑..."></textarea>
+                        </div>
+                        <div class="editor-footer">
+                            <span>编辑器内核: HTML Textarea (QMT 适配版)</span>
+                            <span>UTF-8</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB CONTENT: ANALYTICS TOOLS -->
+            <section class="tab-content" id="tab-analytics">
+                <div class="analytics-grid">
+                    <!-- Optimization Tool -->
+                    <div class="card analytics-card">
+                        <div class="card-header">FOF 组合权重优化工具 (cjquant 内核)</div>
+                        <div class="card-body">
+                            <p class="section-desc">基于历史收益率矩阵，利用量化算法计算最优配置权重。</p>
+                            <form id="form-optimize">
+                                <div class="form-group">
+                                    <label>选择基金标的 (多选)</label>
+                                    <div class="checkbox-group">
+                                        <label class="checkbox-item">
+                                            <input type="checkbox" name="opt-funds" value="000001.OF" checked>
+                                            000001.OF (华夏成长混合)
+                                        </label>
+                                        <label class="checkbox-item">
+                                            <input type="checkbox" name="opt-funds" value="000002.OF" checked>
+                                            000002.OF (华夏债A)
+                                        </label>
+                                        <label class="checkbox-item">
+                                            <input type="checkbox" name="opt-funds" value="000003.OF" checked>
+                                            000003.OF (中证500ETF联接)
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="opt-method">优化算法</label>
+                                    <select id="opt-method">
+                                        <option value="RiskParity">Risk Parity (风险平价算法)</option>
+                                        <option value="HRP">HRP (层次风险平价算法)</option>
+                                        <option value="MeanVariance">Mean Variance (均值方差算法)</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary">⚡ 运行优化计算</button>
+                            </form>
+                            
+                            <div class="result-box hidden" id="optimization-results">
+                                <div class="result-header">优化结果分配比率</div>
+                                <table class="result-table">
+                                    <thead>
+                                        <tr>
+                                            <th>基金代码</th>
+                                            <th>权重比例</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="opt-results-body">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Look-Through Tool -->
+                    <div class="card analytics-card">
+                        <div class="card-header">持仓穿透分析工具 (cjquant 内核)</div>
+                        <div class="card-body">
+                            <p class="section-desc">穿透解析 FOF 组合底层的股票行业暴露与风格暴露分布。</p>
+                            <form id="form-look-through">
+                                <div class="form-group">
+                                    <label>输入当前组合权重</label>
+                                    <div class="input-row">
+                                        <label for="lt-w1">000001.OF 权重:</label>
+                                        <input type="number" id="lt-w1" value="0.4" min="0" max="1" step="0.1">
+                                    </div>
+                                    <div class="input-row">
+                                        <label for="lt-w2">000002.OF 权重:</label>
+                                        <input type="number" id="lt-w2" value="0.3" min="0" max="1" step="0.1">
+                                    </div>
+                                    <div class="input-row">
+                                        <label for="lt-w3">000003.OF 权重:</label>
+                                        <input type="number" id="lt-w3" value="0.3" min="0" max="1" step="0.1">
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary">🔍 执行穿透分析</button>
+                            </form>
+                            
+                            <div class="result-box hidden" id="look-through-results">
+                                <div class="result-header">穿透暴露图表</div>
+                                
+                                <div class="exposure-section">
+                                    <h4>行业暴露分部</h4>
+                                    <div class="exposure-bars" id="lt-industry-bars">
+                                    </div>
+                                </div>
+                                
+                                <div class="exposure-section">
+                                    <h4>风格暴露分布</h4>
+                                    <div class="exposure-bars" id="lt-style-bars">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+</body>
+</html>

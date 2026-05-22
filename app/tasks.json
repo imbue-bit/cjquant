@@ -1,0 +1,22 @@
+[
+  {
+    "name": "FOF风险平价重平衡",
+    "strategy_file": "risk_parity_rebalance.py",
+    "schedule_type": "interval",
+    "schedule_value": 300,
+    "enabled": false,
+    "status": "idle",
+    "last_run": "2026-05-22 21:05:29",
+    "next_run": null
+  },
+  {
+    "name": "穿透合规监控",
+    "strategy_file": "otc_look_through_monitor.py",
+    "schedule_type": "interval",
+    "schedule_value": 600,
+    "enabled": false,
+    "status": "idle",
+    "last_run": "2026-05-22 21:06:33",
+    "next_run": null
+  }
+]
