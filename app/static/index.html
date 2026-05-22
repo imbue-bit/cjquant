@@ -27,6 +27,9 @@
                 <button class="menu-item" data-tab="tab-scheduler">
                     <span class="label">策略调度</span>
                 </button>
+                <button class="menu-item" data-tab="tab-backtest">
+                    <span class="label">组合回测</span>
+                </button>
                 <button class="menu-item" data-tab="tab-research">
                     <span class="label">模型研究</span>
                 </button>
@@ -222,6 +225,137 @@
                             <button class="btn btn-secondary btn-sm" id="btn-refresh-logs" disabled>刷新日志</button>
                         </div>
                         <pre class="log-console" id="log-console-box">--- 请点击上表中的任务“日志”按钮以查看实时执行日志 ---</pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB CONTENT: FOF BACKTESTING -->
+            <section class="tab-content" id="tab-backtest">
+                <div class="backtest-container">
+                    <div class="grid-left-right">
+                        <!-- Left Panel: Form config & Statistics -->
+                        <div class="left-panel">
+                            <!-- Config form -->
+                            <div class="card form-card">
+                                <div class="card-header">组合回测设置</div>
+                                <form id="form-backtest" class="flex-form">
+                                    <div class="form-group">
+                                        <label for="backtest-funds">基金标的 (英文逗号分隔)</label>
+                                        <input type="text" id="backtest-funds" value="000001.OF,000002.OF,000003.OF" placeholder="如: 000001.OF,000002.OF" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="backtest-initial-cash">初始资金 (RMB)</label>
+                                        <input type="number" id="backtest-initial-cash" value="1000000" min="1" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="backtest-start-date">开始日期</label>
+                                        <input type="date" id="backtest-start-date" value="2023-01-01" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="backtest-end-date">结束日期</label>
+                                        <input type="date" id="backtest-end-date" value="2023-12-31" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="backtest-rebalance-freq">调仓策略</label>
+                                        <select id="backtest-rebalance-freq" required>
+                                            <option value="once">once (仅期初买入并持有)</option>
+                                            <option value="monthly">monthly (按月等权再平衡)</option>
+                                            <option value="monthly_rp">monthly_rp (按月风险平价再平衡)</option>
+                                        </select>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary" id="btn-run-backtest">运行回测模拟</button>
+                                </form>
+                            </div>
+                            
+                            <!-- Statistics Panel -->
+                            <div class="card stats-card">
+                                <div class="card-header">回测业绩指标</div>
+                                <div class="card-body stats-grid">
+                                    <div class="stat-box">
+                                        <label>累计收益率</label>
+                                        <span class="value font-mono" id="bt-stat-total-return">0.00%</span>
+                                    </div>
+                                    <div class="stat-box">
+                                        <label>年化收益率</label>
+                                        <span class="value font-mono" id="bt-stat-annualized-return">0.00%</span>
+                                    </div>
+                                    <div class="stat-box">
+                                        <label>最大回撤</label>
+                                        <span class="value font-mono" id="bt-stat-max-drawdown">0.00%</span>
+                                    </div>
+                                    <div class="stat-box">
+                                        <label>夏普比率</label>
+                                        <span class="value font-mono" id="bt-stat-sharpe-ratio">0.00</span>
+                                    </div>
+                                    <div class="stat-box" style="grid-column: span 2;">
+                                        <label>期末总资产 (RMB)</label>
+                                        <span class="value font-mono text-blue" id="bt-stat-final-assets">0.00</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Right Panel: SVG Performance Curve -->
+                        <div class="right-panel">
+                            <div class="card chart-card">
+                                <div class="card-header">组合累计收益率走势图 (SVG 渲染)</div>
+                                <div class="card-body chart-body">
+                                    <div class="chart-container" id="backtest-chart-container">
+                                        <svg id="backtest-svg" width="100%" height="320" style="background-color: #030508;">
+                                            <text x="50%" y="50%" fill="var(--text-muted)" font-size="12" text-anchor="middle" id="svg-placeholder-text">暂无数据，请运行回测</text>
+                                        </svg>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Bottom Panels: Daily Details & Trade Ledgers -->
+                    <div class="card table-card full-width">
+                        <div class="card-header">每日资产明细 (Valuation Ledger)</div>
+                        <div class="table-container max-height-250">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>日期</th>
+                                        <th>可用现金 (RMB)</th>
+                                        <th>在途现金 (RMB)</th>
+                                        <th>证券市值 (RMB)</th>
+                                        <th>资产总值 (RMB)</th>
+                                        <th>累计收益率</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="backtest-daily-list">
+                                    <tr><td colspan="6" class="loading">暂无回测明细数据</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="card table-card full-width">
+                        <div class="card-header">交易明细记录 (Trade History)</div>
+                        <div class="table-container max-height-250">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>交易ID</th>
+                                        <th>委托ID</th>
+                                        <th>基金代码</th>
+                                        <th>方向</th>
+                                        <th>委托日期</th>
+                                        <th>确认日期</th>
+                                        <th>结算日期</th>
+                                        <th>成交净值</th>
+                                        <th>成交份额</th>
+                                        <th>发生金额 (RMB)</th>
+                                        <th>手续费 (RMB)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="backtest-trade-list">
+                                    <tr><td colspan="11" class="loading">暂无回测交易记录</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </section>

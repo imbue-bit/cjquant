@@ -755,7 +755,386 @@ print("核心量化计算完毕。")
         }
     });
 
+    // ----------------- TAB: FOF BACKTESTING -----------------
+    
+    // SVG Chart Plotter
+    function drawBacktestChart(dailyStats) {
+        const svg = document.getElementById("backtest-svg");
+        if (!svg) return;
+        
+        // Clear previous elements
+        svg.innerHTML = "";
+        
+        if (!dailyStats || dailyStats.length === 0) {
+            svg.innerHTML = `<text x="50%" y="50%" fill="var(--text-muted)" font-size="12" text-anchor="middle" id="svg-placeholder-text">暂无数据，请运行回测</text>`;
+            return;
+        }
+        
+        // SVG Dimensions
+        const svgWidth = 800;
+        const svgHeight = 320;
+        svg.setAttribute("viewBox", `0 0 ${svgWidth} ${svgHeight}`);
+        
+        const margin = { top: 25, right: 30, bottom: 40, left: 60 };
+        const chartWidth = svgWidth - margin.left - margin.right;
+        const chartHeight = svgHeight - margin.top - margin.bottom;
+        
+        // Find min and max returns
+        const returns = dailyStats.map(s => s.return);
+        let minRet = Math.min(...returns);
+        let maxRet = Math.max(...returns);
+        
+        // Add small padding to min/max
+        const retRange = maxRet - minRet;
+        if (retRange === 0) {
+            minRet -= 0.05;
+            maxRet += 0.05;
+        } else {
+            minRet -= retRange * 0.1;
+            maxRet += retRange * 0.1;
+        }
+        
+        // Ensure we see 0.0 line if possible
+        if (minRet > 0) minRet = 0;
+        if (maxRet < 0) maxRet = 0;
+        
+        // Scales
+        const getX = (index) => margin.left + (index / (dailyStats.length - 1)) * chartWidth;
+        const getY = (val) => margin.top + chartHeight - ((val - minRet) / (maxRet - minRet)) * chartHeight;
+        
+        // Draw background grid lines (horizontal)
+        const yTicks = 6;
+        for (let i = 0; i <= yTicks; i++) {
+            const val = minRet + (i / yTicks) * (maxRet - minRet);
+            const y = getY(val);
+            
+            // Grid line
+            const gridLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            gridLine.setAttribute("x1", margin.left);
+            gridLine.setAttribute("y1", y);
+            gridLine.setAttribute("x2", margin.left + chartWidth);
+            gridLine.setAttribute("y2", y);
+            gridLine.setAttribute("stroke", val === 0 ? "rgba(255,255,255,0.25)" : "var(--border-color)");
+            gridLine.setAttribute("stroke-width", val === 0 ? "1" : "0.5");
+            if (val !== 0) {
+                gridLine.setAttribute("stroke-dasharray", "2,2");
+            }
+            svg.appendChild(gridLine);
+            
+            // Y label
+            const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            text.setAttribute("x", margin.left - 8);
+            text.setAttribute("y", y + 4);
+            text.setAttribute("fill", val >= 0 ? "var(--color-red)" : "var(--color-green)");
+            if (val === 0) text.setAttribute("fill", "var(--text-muted)");
+            text.setAttribute("font-size", "10");
+            text.setAttribute("font-family", "var(--font-mono)");
+            text.setAttribute("text-anchor", "end");
+            text.textContent = (val >= 0 ? "+" : "") + (val * 100).toFixed(2) + "%";
+            svg.appendChild(text);
+        }
+        
+        // Draw vertical grid lines & X labels
+        const xTicksCount = Math.min(5, dailyStats.length);
+        for (let i = 0; i < xTicksCount; i++) {
+            const index = Math.floor((i / (xTicksCount - 1)) * (dailyStats.length - 1));
+            const s = dailyStats[index];
+            const x = getX(index);
+            
+            // Vertical grid line
+            const gridLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            gridLine.setAttribute("x1", x);
+            gridLine.setAttribute("y1", margin.top);
+            gridLine.setAttribute("x2", x);
+            gridLine.setAttribute("y2", margin.top + chartHeight);
+            gridLine.setAttribute("stroke", "var(--border-color)");
+            gridLine.setAttribute("stroke-width", "0.5");
+            gridLine.setAttribute("stroke-dasharray", "2,2");
+            svg.appendChild(gridLine);
+            
+            // X label
+            const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            text.setAttribute("x", x);
+            text.setAttribute("y", margin.top + chartHeight + 16);
+            text.setAttribute("fill", "var(--text-muted)");
+            text.setAttribute("font-size", "10");
+            text.setAttribute("font-family", "var(--font-mono)");
+            text.setAttribute("text-anchor", "middle");
+            text.textContent = s.date;
+            svg.appendChild(text);
+        }
+        
+        // Draw performance curve line path
+        let pathD = "";
+        dailyStats.forEach((s, idx) => {
+            const x = getX(idx);
+            const y = getY(s.return);
+            if (idx === 0) {
+                pathD += `M ${x} ${y}`;
+            } else {
+                pathD += ` L ${x} ${y}`;
+            }
+        });
+        
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", pathD);
+        path.setAttribute("fill", "none");
+        path.setAttribute("stroke", "var(--color-red)"); // Portfolio line is QMT Red
+        path.setAttribute("stroke-width", "2");
+        svg.appendChild(path);
+        
+        // Draw interactive vertical crosshair, circle and tooltip group
+        const crosshair = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        crosshair.setAttribute("x1", 0);
+        crosshair.setAttribute("y1", margin.top);
+        crosshair.setAttribute("x2", 0);
+        crosshair.setAttribute("y2", margin.top + chartHeight);
+        crosshair.setAttribute("stroke", "rgba(255, 255, 255, 0.4)");
+        crosshair.setAttribute("stroke-width", "1");
+        crosshair.setAttribute("stroke-dasharray", "3,3");
+        crosshair.style.display = "none";
+        svg.appendChild(crosshair);
+        
+        const trackerDot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        trackerDot.setAttribute("r", "4");
+        trackerDot.setAttribute("fill", "#fff");
+        trackerDot.setAttribute("stroke", "var(--color-red)");
+        trackerDot.setAttribute("stroke-width", "2");
+        trackerDot.style.display = "none";
+        svg.appendChild(trackerDot);
+        
+        // Tooltip elements
+        const tooltipGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        tooltipGroup.style.display = "none";
+        
+        const tooltipRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        tooltipRect.setAttribute("fill", "rgba(10, 14, 23, 0.95)");
+        tooltipRect.setAttribute("stroke", "var(--border-color)");
+        tooltipRect.setAttribute("stroke-width", "1");
+        tooltipRect.setAttribute("width", "150");
+        tooltipRect.setAttribute("height", "55");
+        tooltipGroup.appendChild(tooltipRect);
+        
+        const tooltipTextDate = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        tooltipTextDate.setAttribute("x", "8");
+        tooltipTextDate.setAttribute("y", "16");
+        tooltipTextDate.setAttribute("fill", "var(--text-muted)");
+        tooltipTextDate.setAttribute("font-size", "10");
+        tooltipGroup.appendChild(tooltipTextDate);
+        
+        const tooltipTextRet = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        tooltipTextRet.setAttribute("x", "8");
+        tooltipTextRet.setAttribute("y", "32");
+        tooltipTextRet.setAttribute("fill", "#fff");
+        tooltipTextRet.setAttribute("font-size", "11");
+        tooltipTextRet.setAttribute("font-weight", "600");
+        tooltipGroup.appendChild(tooltipTextRet);
+        
+        const tooltipTextAssets = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        tooltipTextAssets.setAttribute("x", "8");
+        tooltipTextAssets.setAttribute("y", "46");
+        tooltipTextAssets.setAttribute("fill", "var(--color-blue)");
+        tooltipTextAssets.setAttribute("font-size", "10");
+        tooltipTextAssets.setAttribute("font-family", "var(--font-mono)");
+        tooltipGroup.appendChild(tooltipTextAssets);
+        
+        svg.appendChild(tooltipGroup);
+        
+        // Invisible overlay for tracking mouse
+        const overlay = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        overlay.setAttribute("x", margin.left);
+        overlay.setAttribute("y", margin.top);
+        overlay.setAttribute("width", chartWidth);
+        overlay.setAttribute("height", chartHeight);
+        overlay.setAttribute("fill", "transparent");
+        overlay.style.cursor = "crosshair";
+        svg.appendChild(overlay);
+        
+        overlay.addEventListener("mousemove", (e) => {
+            const rect = svg.getBoundingClientRect();
+            const mouseX = ((e.clientX - rect.left) / rect.width) * svgWidth;
+            
+            const relativeX = mouseX - margin.left;
+            const percent = Math.min(Math.max(relativeX / chartWidth, 0), 1);
+            const index = Math.round(percent * (dailyStats.length - 1));
+            const dataPoint = dailyStats[index];
+            if (!dataPoint) return;
+            
+            const ptX = getX(index);
+            const ptY = getY(dataPoint.return);
+            
+            // Update crosshair
+            crosshair.setAttribute("x1", ptX);
+            crosshair.setAttribute("x2", ptX);
+            crosshair.style.display = "block";
+            
+            // Update dot
+            trackerDot.setAttribute("cx", ptX);
+            trackerDot.setAttribute("cy", ptY);
+            trackerDot.style.display = "block";
+            
+            // Update Tooltip
+            tooltipTextDate.textContent = `日期: ${dataPoint.date}`;
+            
+            const retVal = dataPoint.return;
+            tooltipTextRet.textContent = `收益: ${(retVal * 100).toFixed(2)}%`;
+            tooltipTextRet.setAttribute("fill", retVal >= 0 ? "var(--color-red)" : "var(--color-green)");
+            
+            tooltipTextAssets.textContent = `资产: ${dataPoint.total_assets.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}`;
+            
+            // Tooltip position
+            let tooltipX = ptX + 15;
+            let tooltipY = ptY - 20;
+            
+            if (tooltipX + 150 > margin.left + chartWidth) {
+                tooltipX = ptX - 165;
+            }
+            if (tooltipY + 55 > margin.top + chartHeight) {
+                tooltipY = margin.top + chartHeight - 55;
+            }
+            if (tooltipY < margin.top) {
+                tooltipY = margin.top;
+            }
+            
+            tooltipGroup.setAttribute("transform", `translate(${tooltipX}, ${tooltipY})`);
+            tooltipGroup.style.display = "block";
+        });
+        
+        overlay.addEventListener("mouseleave", () => {
+            crosshair.style.display = "none";
+            trackerDot.style.display = "none";
+            tooltipGroup.style.display = "none";
+        });
+    }
+
+    // Submit backtest request
+    document.getElementById("form-backtest").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        
+        const btn = document.getElementById("btn-run-backtest");
+        btn.disabled = true;
+        btn.textContent = "回测运行中...";
+        
+        const fundsRaw = document.getElementById("backtest-funds").value;
+        const funds = fundsRaw.split(",").map(f => f.trim()).filter(f => f !== "");
+        const initialCash = parseFloat(document.getElementById("backtest-initial-cash").value) || 0;
+        const startDate = document.getElementById("backtest-start-date").value;
+        const endDate = document.getElementById("backtest-end-date").value;
+        const rebalanceFreq = document.getElementById("backtest-rebalance-freq").value;
+        
+        if (funds.length === 0) {
+            alert("请选择至少一个基金标的！");
+            btn.disabled = false;
+            btn.textContent = "运行回测模拟";
+            return;
+        }
+        
+        try {
+            const res = await fetch("/api/analytics/backtest", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    funds: funds,
+                    start_date: startDate,
+                    end_date: endDate,
+                    initial_cash: initialCash,
+                    rebalance_freq: rebalanceFreq
+                })
+            });
+            
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.detail || "后端计算回测失败");
+            }
+            
+            const data = await res.json();
+            
+            // 1. Render Summary Stats
+            const summary = data.summary;
+            
+            const trSpan = document.getElementById("bt-stat-total-return");
+            trSpan.textContent = (summary.total_return >= 0 ? "+" : "") + (summary.total_return * 100).toFixed(2) + "%";
+            trSpan.className = "value font-mono " + (summary.total_return >= 0 ? "text-up" : "text-down");
+            
+            const arSpan = document.getElementById("bt-stat-annualized-return");
+            arSpan.textContent = (summary.annualized_return >= 0 ? "+" : "") + (summary.annualized_return * 100).toFixed(2) + "%";
+            arSpan.className = "value font-mono " + (summary.annualized_return >= 0 ? "text-up" : "text-down");
+            
+            const mdSpan = document.getElementById("bt-stat-max-drawdown");
+            mdSpan.textContent = (summary.max_drawdown * 100).toFixed(2) + "%";
+            mdSpan.className = "value font-mono text-down"; // Drawdown is always negative/loss
+            
+            const srSpan = document.getElementById("bt-stat-sharpe-ratio");
+            srSpan.textContent = summary.sharpe_ratio.toFixed(2);
+            srSpan.className = "value font-mono " + (summary.sharpe_ratio >= 1.0 ? "text-up" : "text-flat");
+            
+            document.getElementById("bt-stat-final-assets").textContent = summary.final_assets.toLocaleString("zh-CN", { minimumFractionDigits: 2 });
+            
+            // 2. Render SVG chart
+            drawBacktestChart(data.daily_stats);
+            
+            // 3. Render Daily Ledger Table
+            const dailyList = document.getElementById("backtest-daily-list");
+            dailyList.innerHTML = "";
+            
+            if (data.daily_stats.length === 0) {
+                dailyList.innerHTML = `<tr><td colspan="6" class="loading">暂无回测明细数据</td></tr>`;
+            } else {
+                data.daily_stats.forEach(s => {
+                    const tr = document.createElement("tr");
+                    const retClass = s.return >= 0 ? "text-up" : "text-down";
+                    const retText = (s.return >= 0 ? "+" : "") + (s.return * 100).toFixed(2) + "%";
+                    
+                    tr.innerHTML = `
+                        <td style="color: var(--text-muted); font-size: 12px; height: 30px;"><span class="cell-text">${s.date}</span></td>
+                        <td style="font-family: var(--font-mono);"><span class="cell-text">${s.available_cash.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}</span></td>
+                        <td style="font-family: var(--font-mono);"><span class="cell-text">${s.transit_cash.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}</span></td>
+                        <td style="font-family: var(--font-mono);"><span class="cell-text">${s.market_value.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}</span></td>
+                        <td style="font-family: var(--font-mono); font-weight: 500;"><span class="cell-text text-blue">${s.total_assets.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}</span></td>
+                        <td><span class="cell-text ${retClass}" style="font-weight: 600;">${retText}</span></td>
+                    `;
+                    dailyList.appendChild(tr);
+                });
+            }
+            
+            // 4. Render Trade History Table
+            const tradeList = document.getElementById("backtest-trade-list");
+            tradeList.innerHTML = "";
+            
+            if (data.trades.length === 0) {
+                tradeList.innerHTML = `<tr><td colspan="11" class="loading">无任何交易订单确认历史</td></tr>`;
+            } else {
+                data.trades.forEach(t => {
+                    const tr = document.createElement("tr");
+                    const dirClass = t.direction === "买入" ? "badge-red" : "badge-orange";
+                    
+                    tr.innerHTML = `
+                        <td style="color: var(--text-muted);"><span class="cell-text">${t.trade_id}</span></td>
+                        <td style="color: var(--text-muted);"><span class="cell-text">${t.order_id}</span></td>
+                        <td style="font-family: var(--font-mono);"><span class="cell-text">${t.fund_code}</span></td>
+                        <td><span class="cell-text"><span class="badge ${dirClass}">${t.direction}</span></span></td>
+                        <td style="font-size: 11px;"><span class="cell-text">${t.submit_date}</span></td>
+                        <td style="font-size: 11px;"><span class="cell-text">${t.confirm_date}</span></td>
+                        <td style="font-size: 11px;"><span class="cell-text">${t.settle_date}</span></td>
+                        <td style="font-family: var(--font-mono);"><span class="cell-text">${t.nav.toFixed(4)}</span></td>
+                        <td style="font-family: var(--font-mono);"><span class="cell-text">${t.shares.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}</span></td>
+                        <td style="font-weight: 500;"><span class="cell-text">${t.volume.toLocaleString("zh-CN", { minimumFractionDigits: 2 })}</span></td>
+                        <td><span class="cell-text">${t.fee.toFixed(2)}</span></td>
+                    `;
+                    tradeList.appendChild(tr);
+                });
+            }
+            
+        } catch (err) {
+            alert(err.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "运行回测模拟";
+        }
+    });
+
     // ----------------- APP INITIAL LOADING -----------------
     // Start on portfolio tab
     onTabChanged("tab-portfolio");
 });
+

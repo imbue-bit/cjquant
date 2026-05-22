@@ -312,6 +312,13 @@ class PortfolioUpdateRequest(BaseModel):
     pnl_override: Optional[float] = None
     positions: List[PositionItem]
 
+class BacktestRequest(BaseModel):
+    funds: List[str]
+    start_date: str
+    end_date: str
+    initial_cash: float
+    rebalance_freq: str  # "once", "monthly", "monthly_rp"
+
 # ----------------- API ENDPOINTS -----------------
 
 # 1. Strategy Files Endpoint
@@ -560,7 +567,7 @@ def run_optimization(req: OptimizeRequest):
             weights = opt.optimize()
         elif req.method == "MeanVariance":
             opt = MeanVarianceOptimizer(df_returns)
-            weights = opt.optimize(target_return=0.08) # Target 8% return
+            weights = opt.optimize()
         elif req.method == "HRP":
             opt = HRPOptimizer(df_returns)
             weights = opt.optimize()
@@ -610,7 +617,190 @@ def run_look_through(req: LookThroughRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Look-through failed: {str(e)}")
 
-# 5. Serve HTML & Static Files
+# 5. FOF Backtest Endpoint
+@app.post("/api/analytics/backtest")
+def run_backtest(req: BacktestRequest):
+    if not req.funds:
+        raise HTTPException(status_code=400, detail="请选择至少一个基金标的进行回测")
+    if req.initial_cash <= 0:
+        raise HTTPException(status_code=400, detail="初始资金必须大于 0")
+        
+    try:
+        from cjquant.backtest.engine import OTCBacktestEngine
+        from cjquant.backtest.slippage import ZeroSlippage
+        
+        # 1. Fetch public fund historical NAV data from EM (akshare)
+        provider = PublicFundProvider()
+        dfs = []
+        for code in req.funds:
+            clean_code = code.split(".")[0]
+            try:
+                df = provider.fetch(clean_code, start_date=req.start_date, end_date=req.end_date)
+                if not df.empty:
+                    df['fund_code'] = code
+                    dfs.append(df)
+            except Exception as e:
+                print(f"Error fetching data for {code} during backtest: {e}")
+                
+        if not dfs:
+            raise HTTPException(status_code=400, detail="未获取到所选基金在指定日期区间内的任何历史净值数据。")
+            
+        market_data = pd.concat(dfs)
+        
+        # 2. Initialize Backtest Engine
+        engine = OTCBacktestEngine(
+            market_data=market_data,
+            initial_cash=req.initial_cash,
+            t_plus_confirm=1,
+            t_plus_settle=3,
+            slippage_model=ZeroSlippage()
+        )
+        
+        # 3. Simulate Rebalance Strategy Loop
+        last_month = None
+        reinvest_weights = None
+        
+        while engine.current_date_idx < len(engine.trading_dates):
+            current_date = engine.current_date
+            
+            # Reinvest if a previous monthly rebalance liquidation has settled
+            if reinvest_weights is not None:
+                transit_value = sum(engine.cash_account.transit_queue.values())
+                # If transit cash is fully settled and no pending transactions remain
+                if transit_value == 0 and len(engine.pending_orders) == 0:
+                    portfolio_value = engine.cash_account.available_cash
+                    if portfolio_value > 100.0:
+                        for code, w in zip(req.funds, reinvest_weights):
+                            buy_value = portfolio_value * w
+                            engine.submit_order(code, 'BUY', value=buy_value)
+                        reinvest_weights = None  # Reinvestment complete
+            
+            is_first_step = (engine.current_date_idx == 0)
+            is_new_month = (last_month is not None and current_date.month != last_month)
+            
+            if is_first_step:
+                # Initial buy-in
+                weights = [1.0 / len(req.funds)] * len(req.funds)
+                portfolio_value = engine.cash_account.available_cash
+                for code, w in zip(req.funds, weights):
+                    buy_value = portfolio_value * w
+                    engine.submit_order(code, 'BUY', value=buy_value)
+            
+            elif is_new_month and (req.rebalance_freq in ["monthly", "monthly_rp"]):
+                # Calculate new target weights
+                if req.rebalance_freq == "monthly_rp":
+                    try:
+                        if engine.current_date_idx >= 10:
+                            sub_returns = {}
+                            for code in req.funds:
+                                fund_df = market_data[market_data['fund_code'] == code]
+                                fund_df_sub = fund_df[fund_df.index < current_date]
+                                if not fund_df_sub.empty:
+                                    sub_returns[code] = fund_df_sub['adj_nav'].pct_change().dropna()
+                            df_sub_rets = pd.DataFrame(sub_returns).dropna()
+                            if len(df_sub_rets) > 5:
+                                from cjquant.optimizer.traditional import RiskParityOptimizer
+                                opt = RiskParityOptimizer(df_sub_rets)
+                                weights = opt.optimize().tolist()
+                            else:
+                                weights = [1.0 / len(req.funds)] * len(req.funds)
+                        else:
+                            weights = [1.0 / len(req.funds)] * len(req.funds)
+                    except Exception:
+                        weights = [1.0 / len(req.funds)] * len(req.funds)
+                else:
+                    weights = [1.0 / len(req.funds)] * len(req.funds)
+                
+                # Sell all current positions
+                any_sold = False
+                for code, pos in engine.positions.items():
+                    shares = pos.total_available_shares
+                    if shares > 0.001:
+                        engine.submit_order(code, 'SELL', shares=shares)
+                        any_sold = True
+                        
+                if any_sold:
+                    reinvest_weights = weights
+                else:
+                    # If cash-only, buy immediately
+                    portfolio_value = engine.cash_account.available_cash
+                    for code, w in zip(req.funds, weights):
+                        buy_value = portfolio_value * w
+                        engine.submit_order(code, 'BUY', value=buy_value)
+            
+            last_month = current_date.month
+            engine.step()
+            
+        # 4. Formulate response payload
+        trades = []
+        for t in engine.trade_history:
+            trades.append({
+                "trade_id": t.trade_id,
+                "order_id": t.order_id,
+                "fund_code": t.fund_code,
+                "direction": "买入" if t.direction == "BUY" else "卖出",
+                "submit_date": t.submit_date.strftime("%Y-%m-%d"),
+                "confirm_date": t.confirm_date.strftime("%Y-%m-%d"),
+                "settle_date": t.settle_date.strftime("%Y-%m-%d"),
+                "nav": round(float(t.confirm_nav), 4),
+                "shares": round(float(t.filled_shares), 4),
+                "volume": round(float(t.gross_amount), 2),
+                "fee": round(float(t.fee), 2),
+                "net_volume": round(float(t.net_amount), 2)
+            })
+            
+        daily_stats = []
+        for s in engine.daily_stats:
+            ret = (s['total_assets'] / req.initial_cash) - 1.0
+            daily_stats.append({
+                "date": s['date'].strftime("%Y-%m-%d"),
+                "available_cash": round(float(s['available_cash']), 2),
+                "transit_cash": round(float(s['transit_cash']), 2),
+                "market_value": round(float(s['market_value']), 2),
+                "total_assets": round(float(s['total_assets']), 2),
+                "return": round(float(ret), 6)
+            })
+            
+        if len(engine.daily_stats) > 1:
+            total_ret = (engine.daily_stats[-1]['total_assets'] / req.initial_cash) - 1.0
+            n_days = len(engine.daily_stats)
+            ann_ret = (1.0 + total_ret) ** (252.0 / n_days) - 1.0 if n_days > 0 else 0.0
+            
+            assets_series = pd.Series([s['total_assets'] for s in engine.daily_stats])
+            cum_max = assets_series.cummax()
+            drawdowns = (assets_series - cum_max) / cum_max
+            max_dd = float(drawdowns.min())
+            
+            daily_rets = assets_series.pct_change().dropna()
+            std_dev = daily_rets.std()
+            sharpe = (float(daily_rets.mean() * 252 - 0.02) / (float(std_dev * np.sqrt(252)))) if std_dev > 0 else 0.0
+        else:
+            total_ret = 0.0
+            ann_ret = 0.0
+            max_dd = 0.0
+            sharpe = 0.0
+            
+        summary = {
+            "total_return": round(total_ret, 6),
+            "annualized_return": round(ann_ret, 6),
+            "max_drawdown": round(max_dd, 6),
+            "sharpe_ratio": round(sharpe, 4),
+            "initial_cash": req.initial_cash,
+            "final_assets": round(float(engine.daily_stats[-1]['total_assets']), 2) if engine.daily_stats else req.initial_cash
+        }
+        
+        return {
+            "status": "success",
+            "summary": summary,
+            "daily_stats": daily_stats,
+            "trades": trades
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Backtest simulation execution failed: {str(e)}")
+
+# 6. Serve HTML & Static Files
 @app.get("/")
 def get_dashboard():
     index_path = os.path.join(BASE_DIR, "static", "index.html")

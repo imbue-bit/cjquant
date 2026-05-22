@@ -156,7 +156,7 @@ class OTCBacktestEngine:
         for code, pos in self.positions.items():
             nav = self._get_nav(code, today)
             if nav:
-                total_market_value += pos.total_available_shares * nav
+                total_market_value += pos.total_shares * nav
 
         # 包含 transit 中的资金，因为这是属于投资者的钱，只是在途
         transit_value = sum(self.cash_account.transit_queue.values())

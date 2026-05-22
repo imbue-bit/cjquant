@@ -35,8 +35,12 @@ class FundPosition:
         self.frozen_shares = 0.0 # 提交了SELL指令但尚未确认的份额
 
     @property
+    def total_shares(self) -> float:
+        return sum(lot.shares for lot in self.lots)
+
+    @property
     def total_available_shares(self) -> float:
-        return sum(lot.shares for lot in self.lots) - self.frozen_shares
+        return self.total_shares - self.frozen_shares
 
     def add_lot(self, confirm_date: datetime, shares: float, unit_cost: float):
         self.lots.append(PositionLot(self.fund_code, confirm_date, shares, unit_cost))
