@@ -23,7 +23,7 @@ pip install cjquant
 ```bash
 git clone http://github.com/imbue-bit/cjquant/
 cd cjquant
-python ./app/gui.py
+python run_gui.py
 ```
 
 ![](showcase.png)
