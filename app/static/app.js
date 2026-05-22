@@ -86,7 +86,7 @@ document.addEventListener("DOMContentLoaded", () => {
             } else {
                 data.positions.forEach(pos => {
                     const pnl = ((pos.current_nav - pos.cost_nav) / pos.cost_nav) * 100;
-                    const pnlClass = pnl >= 0 ? "badge-green" : "badge-red";
+                    const pnlClass = pnl >= 0 ? "badge-red" : "badge-green";
                     const pnlText = (pnl >= 0 ? "+" : "") + pnl.toFixed(2) + "%";
                     
                     const tr = document.createElement("tr");
@@ -369,7 +369,7 @@ document.addEventListener("DOMContentLoaded", () => {
             
             data.strategies.forEach(file => {
                 const li = document.createElement("li");
-                li.innerHTML = `📄 <span class="fn">${file}</span>`;
+                li.innerHTML = `<span class="fn">${file}</span>`;
                 li.setAttribute("data-filename", file);
                 
                 if (currentSelectedFile === file) {
@@ -416,7 +416,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const code = document.getElementById("code-editor").value;
         const btn = document.getElementById("btn-save-strategy");
         
-        btn.textContent = "💾 正在保存...";
+        btn.textContent = "正在保存...";
         btn.disabled = true;
         
         try {
@@ -428,14 +428,14 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!res.ok) throw new Error("保存代码失败");
             
             // Brief success state representation
-            btn.textContent = "✅ 保存成功!";
+            btn.textContent = "保存成功";
             setTimeout(() => {
-                btn.textContent = "💾 保存修改";
+                btn.textContent = "保存修改";
                 btn.disabled = false;
             }, 1500);
         } catch (err) {
             alert(err.message);
-            btn.textContent = "💾 保存修改";
+            btn.textContent = "保存修改";
             btn.disabled = false;
         }
     });

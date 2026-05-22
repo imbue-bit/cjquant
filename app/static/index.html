@@ -10,31 +10,27 @@
 </head>
 <body>
     <div class="app-container">
-        <!-- Sidebar Navigation (QMT style) -->
+        <!-- Sidebar Navigation (QMT style: completely flat, square, compact) -->
         <aside class="sidebar">
             <div class="sidebar-logo">
                 <div class="logo-icon">CJ</div>
                 <div class="logo-text">
                     <h2>CJQuant</h2>
-                    <span>场外基金量化终端</span>
+                    <span>场外基金交易终端</span>
                 </div>
             </div>
             
             <nav class="sidebar-menu">
                 <button class="menu-item active" data-tab="tab-portfolio">
-                    <span class="icon">💼</span>
                     <span class="label">我的账户</span>
                 </button>
                 <button class="menu-item" data-tab="tab-scheduler">
-                    <span class="icon">⏰</span>
                     <span class="label">策略调度</span>
                 </button>
                 <button class="menu-item" data-tab="tab-research">
-                    <span class="icon">🔬</span>
                     <span class="label">模型研究</span>
                 </button>
                 <button class="menu-item" data-tab="tab-analytics">
-                    <span class="icon">📊</span>
                     <span class="label">投研分析</span>
                 </button>
             </nav>
@@ -92,7 +88,7 @@
                     <div class="card table-card full-width">
                         <div class="card-header">
                             <span>当前持仓 (场外开放式基金)</span>
-                            <button class="btn btn-secondary btn-sm" id="btn-refresh-portfolio">⚡ 刷新</button>
+                            <button class="btn btn-secondary btn-sm" id="btn-refresh-portfolio">刷新</button>
                         </div>
                         <div class="table-container">
                             <table>
@@ -161,7 +157,7 @@
                                     <label for="task-interval">调度间隔 (秒)</label>
                                     <input type="number" id="task-interval" value="300" min="5" required>
                                 </div>
-                                <button type="submit" class="btn btn-primary">➕ 创建调度任务</button>
+                                <button type="submit" class="btn btn-primary">创建调度任务</button>
                             </form>
                         </div>
                         
@@ -194,7 +190,7 @@
                     <div class="card log-card">
                         <div class="card-header">
                             <span id="log-header-title">任务运行控制台日志 (选中任务查看)</span>
-                            <button class="btn btn-secondary btn-sm" id="btn-refresh-logs" disabled>🔄 刷新日志</button>
+                            <button class="btn btn-secondary btn-sm" id="btn-refresh-logs" disabled>刷新日志</button>
                         </div>
                         <pre class="log-console" id="log-console-box">--- 请点击上表中的任务“日志”按钮以查看实时执行日志 ---</pre>
                     </div>
@@ -208,7 +204,7 @@
                     <div class="research-sidebar">
                         <div class="dir-header">
                             <span>策略文件目录</span>
-                            <button class="btn btn-secondary btn-sm" id="btn-new-strategy">➕ 新建</button>
+                            <button class="btn btn-secondary btn-sm" id="btn-new-strategy">新建</button>
                         </div>
                         <ul class="file-list" id="strategy-file-list">
                             <li class="loading">加载文件...</li>
@@ -219,7 +215,7 @@
                     <div class="research-main">
                         <div class="editor-header">
                             <span id="editor-filename">未选择文件</span>
-                            <button class="btn btn-primary btn-sm" id="btn-save-strategy" disabled>💾 保存修改</button>
+                            <button class="btn btn-primary btn-sm" id="btn-save-strategy" disabled>保存修改</button>
                         </div>
                         <div class="editor-container">
                             <textarea id="code-editor" spellcheck="false" placeholder="# 选择或创建一个策略文件开始编辑..."></textarea>
@@ -266,7 +262,7 @@
                                         <option value="MeanVariance">Mean Variance (均值方差算法)</option>
                                     </select>
                                 </div>
-                                <button type="submit" class="btn btn-primary">⚡ 运行优化计算</button>
+                                <button type="submit" class="btn btn-primary">运行优化计算</button>
                             </form>
                             
                             <div class="result-box hidden" id="optimization-results">
@@ -306,14 +302,14 @@
                                         <input type="number" id="lt-w3" value="0.3" min="0" max="1" step="0.1">
                                     </div>
                                 </div>
-                                <button type="submit" class="btn btn-primary">🔍 执行穿透分析</button>
+                                <button type="submit" class="btn btn-primary">执行穿透分析</button>
                             </form>
                             
                             <div class="result-box hidden" id="look-through-results">
-                                <div class="result-header">穿透暴露图表</div>
+                                <div class="result-header">穿透暴露结果</div>
                                 
                                 <div class="exposure-section">
-                                    <h4>行业暴露分部</h4>
+                                    <h4>行业暴露分布</h4>
                                     <div class="exposure-bars" id="lt-industry-bars">
                                     </div>
                                 </div>
@@ -330,5 +326,8 @@
             </section>
         </main>
     </div>
+    
+    <!-- Script file import (QMT controller) -->
+    <script src="/static/app.js"></script>
 </body>
 </html>
