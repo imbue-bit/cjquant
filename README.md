@@ -128,7 +128,7 @@ print(f"R-Squared (解释度): {result.r_squared:.4f}")
 print("因子暴露权重:", result.exposures)
 ```
 
-### 3. 基于机器学习的前沿组合优化与可视化报告
+### 基于机器学习的前沿组合优化与可视化报告
 
 使用 `cjquant.optimizer.machine_learning` 处理传统均值方差模型在非标数据中协方差矩阵极易失效的问题，并通过 `cjquant.visualizer` 生成可视化分析报告。
 
@@ -159,7 +159,7 @@ reporter = CJQuantReporter(stats_csv_path='results.csv', trades_csv_path='trades
 reporter.generate_html('report.html')
 ```
 
-### 4. 导出 O32 格式下单列表进行实盘/模拟指令对接
+### 导出 O32 格式下单列表进行指令对接
 
 调用 `cjquant.execution` 模块，可直接将回测产生的交易记录或待交易订单，导出为符合国内金融机构恒生 O32 投资系统导入格式要求的 CSV/Excel 指令单。
 
@@ -178,7 +178,7 @@ exporter = O32OrderExporter(
 exporter.export(engine.pending_orders, "o32_orders.csv", format="csv", encoding="gbk")
 ```
 
-### 5. 场外基金高级下单 API (OTCExecutor)
+### 下单 API
 
 提供针对场外基金（申购、赎回）的极简下单 API，底层支持多种导出通道（如恒生 O32 格式、微信理财通格式等），默认保存到运行目录：
 
