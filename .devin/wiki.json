@@ -1,13 +1,13 @@
 {
   "repo_notes": [
     {
-      "content": ""
+      "content": "Please remember to write this wiki in Chinese./Please remember to write this wiki in Chinese./Please remember to write this wiki in Chinese./Please remember to write this wiki in Chinese./Please remember to write this wiki in Chinese."
     }
   ],
   "pages": [
     {
-      "title": "项目概览",
-      "purpose": "cjquant 的高层级介绍：其作为中国场外基金（OTC）量化框架的设计初衷、四大功能支柱、核心设计理念（份额-净值-流动性时间线模型），以及库文件与 Web 终端之间的关系。包含指向所有主要子章节的链接。",
+      "title": "Project Overview",
+      "purpose": "High-level introduction to cjquant: its purpose as a Chinese OTC fund quantitative framework, the four functional pillars, key design philosophy (share-NAV-liquidity timeline model), and how the library and web terminal relate. Links to all major child sections.",
       "page_notes": [
         {
           "content": ""
@@ -15,9 +15,9 @@
       ]
     },
     {
-      "title": "架构与模块图谱",
-      "purpose": "描述整体系统架构：cjquant 库的包结构（回测、数据、优化器、穿透分析、执行、可视化）、FastAPI Web 应用层，以及它们如何互联。涵盖从数据摄取到交易执行的量化工作流。",
-      "parent": "项目概览",
+      "title": "Architecture and Module Map",
+      "purpose": "Describes the overall system architecture: the cjquant library package structure (backtest, data, optimizer, look_through, execution, visualizer), the FastAPI web app layer, and how they interconnect. Covers the quantitative workflow from data ingestion to execution.",
+      "parent": "Project Overview",
       "page_notes": [
         {
           "content": ""
@@ -25,9 +25,9 @@
       ]
     },
     {
-      "title": "快速入门与安装",
-      "purpose": "涵盖通过 pyproject.toml 安装、Python 版本要求、核心依赖项（pandas, numpy, scipy, scikit-learn, akshare, plotly）、运行 Web 终端（uvicorn / run_gui.py）以及桌面 GUI 启动器。",
-      "parent": "项目概览",
+      "title": "Getting Started and Installation",
+      "purpose": "Covers installation via pyproject.toml, Python version requirements, key dependencies (pandas, numpy, scipy, scikit-learn, akshare, plotly), running the web terminal (uvicorn / run_gui.py), and the desktop GUI launcher.",
+      "parent": "Project Overview",
       "page_notes": [
         {
           "content": ""
@@ -35,8 +35,8 @@
       ]
     },
     {
-      "title": "数据层",
-      "purpose": "数据流水线概述：异构场外基金数据如何被获取、标准化、对齐和校验。包含指向数据提供商、对齐方式和数据架构（Schema）子页面的链接。",
+      "title": "Data Layer",
+      "purpose": "Overview of the data pipeline: how heterogeneous OTC fund data is fetched, normalized, aligned, and validated. Links to child pages covering providers, alignment, and schema.",
       "page_notes": [
         {
           "content": ""
@@ -44,9 +44,9 @@
       ]
     },
     {
-      "title": "数据流水线与提供商",
-      "purpose": "详细介绍 DataPipeline 门面类、PublicFundProvider（akshare/东财集成、重试逻辑、净值获取）、PrivateFundLocalProvider（本地 CSV 摄取）以及 BaseProvider 接口。涵盖 data_api 单例模式。",
-      "parent": "数据层",
+      "title": "DataPipeline and Providers",
+      "purpose": "Details the DataPipeline facade class, PublicFundProvider (akshare/Eastmoney integration, retry logic, NAV fetching), PrivateFundLocalProvider (local CSV ingestion), and the BaseProvider interface. Covers the data_api singleton.",
+      "parent": "Data Layer",
       "page_notes": [
         {
           "content": ""
@@ -54,9 +54,9 @@
       ]
     },
     {
-      "title": "数据对齐与架构",
-      "purpose": "解释 DataAligner 类及其三种插值策略（前向填充 ffill、线性插值 linear、代理映射 Beta Mapping）、FundDataSchema 校验契约（单位净值、累计净值、复权净值列），以及通过 DataFormatError 和 AlignmentError 进行的错误处理。",
-      "parent": "数据层",
+      "title": "Data Alignment and Schema",
+      "purpose": "Explains the DataAligner class and its three interpolation strategies (ffill, linear, proxy_mapping/Beta Mapping), the FundDataSchema validation contract (unit_nav, acc_nav, adj_nav columns), and error handling via DataFormatError and AlignmentError.",
+      "parent": "Data Layer",
       "page_notes": [
         {
           "content": ""
@@ -64,8 +64,8 @@
       ]
     },
     {
-      "title": "回测引擎",
-      "purpose": "场外基金（OTC）回测系统概述：其 T+N 结算模型、订单生命周期，以及与交易所回测的区别。包含指向引擎、组合核算、费率/滑点模型和数据模型的子页面链接。",
+      "title": "Backtesting Engine",
+      "purpose": "Overview of the OTC backtesting system: its T+N settlement model, order lifecycle, and how it differs from exchange-based backtesting. Links to child pages for the engine, portfolio accounting, fee/slippage models, and data models.",
       "page_notes": [
         {
           "content": ""
@@ -73,9 +73,9 @@
       ]
     },
     {
-      "title": "OTCBacktestEngine 引擎",
-      "purpose": "深入探讨 OTCBacktestEngine 类：初始化参数（市场数据、初始现金、T+N 确认、T+N 结算、滑点模型）、step() 模拟循环、订单提交、净值缓存、节假日处理、每日逐日盯市估值、run_all() 以及 CSV 导出方法。",
-      "parent": "回测引擎",
+      "title": "OTCBacktestEngine",
+      "purpose": "Deep dive into the OTCBacktestEngine class: initialization parameters (market_data, initial_cash, t_plus_confirm, t_plus_settle, slippage_model), the step() simulation loop, order submission, NAV cache, holiday handling, daily mark-to-market valuation, run_all(), and CSV export methods.",
+      "parent": "Backtesting Engine",
       "page_notes": [
         {
           "content": ""
@@ -83,9 +83,9 @@
       ]
     },
     {
-      "title": "组合核算：在途现金账户与基金持仓",
-      "purpose": "涵盖现金生命周期的三个阶段（可用、冻结、在途）、TransitCashAccount 类（锁定现金、进入在途、处理每日到账）、具有先进先出（FIFO）批次核算的 FundPosition（PositionLot、处理卖出），以及浮点数 epsilon 容差。",
-      "parent": "回测引擎",
+      "title": "Portfolio Accounting: TransitCashAccount and FundPosition",
+      "purpose": "Covers the three-stage cash lifecycle (available, frozen, transit), the TransitCashAccount class (lock_cash, add_to_transit, process_daily_arrival), FundPosition with FIFO lot-based accounting (PositionLot, process_sell), and floating-point epsilon tolerance.",
+      "parent": "Backtesting Engine",
       "page_notes": [
         {
           "content": ""
@@ -93,9 +93,9 @@
       ]
     },
     {
-      "title": "费率模型、滑点与数据模型",
-      "purpose": "解释 OTCFeeModel 阶梯式赎回费（按自然日持有天数、惩罚性费率）、滑点层级（BaseSlippage、零滑点、平方根滑点、自定义 Lambda 滑点）、Order/TradeRecord/PositionLot 数据类，以及交易异常处理（资金不足、持仓不足）。",
-      "parent": "回测引擎",
+      "title": "Fee Models, Slippage, and Data Models",
+      "purpose": "Explains OTCFeeModel tiered redemption fees (holding natural days, punitive rates), the slippage hierarchy (BaseSlippage, ZeroSlippage, SquareRootSlippage, CustomLambdaSlippage), the Order/TradeRecord/PositionLot dataclasses, and trade exceptions (InsufficientCashError, InsufficientPositionError).",
+      "parent": "Backtesting Engine",
       "page_notes": [
         {
           "content": ""
@@ -103,8 +103,8 @@
       ]
     },
     {
-      "title": "组合优化",
-      "purpose": "优化器模块概述：BaseOptimizer 契约、四种优化器实现，以及 Ledoit-Wolf 协方差收缩工具。包含指向传统和机器学习（ML）优化器的子页面链接。",
+      "title": "Portfolio Optimization",
+      "purpose": "Overview of the optimizer module: the BaseOptimizer contract, the four optimizer implementations, and the Ledoit-Wolf covariance shrinkage utility. Links to child pages for traditional and ML-based optimizers.",
       "page_notes": [
         {
           "content": ""
@@ -112,9 +112,9 @@
       ]
     },
     {
-      "title": "传统优化器：风险平价与均值方差",
-      "purpose": "详细介绍 RiskParityOptimizer（SLSQP 算法、边际风险贡献、等风险贡献目标）、MeanVarianceOptimizer（夏普比率最大化、252天年化、2%无风险利率）、BaseOptimizer 接口，以及 calculate_shrunk_covariance 收缩工具。",
-      "parent": "组合优化",
+      "title": "Traditional Optimizers: Risk Parity and Mean-Variance",
+      "purpose": "Details RiskParityOptimizer (SLSQP, marginal risk contribution, equal risk contribution objective), MeanVarianceOptimizer (Sharpe ratio maximization, 252-day annualization, 2% risk-free rate), BaseOptimizer interface, and the calculate_shrunk_covariance utility (Ledoit-Wolf shrinkage).",
+      "parent": "Portfolio Optimization",
       "page_notes": [
         {
           "content": ""
@@ -122,9 +122,9 @@
       ]
     },
     {
-      "title": "HRP 与 Black-Litterman 优化器",
-      "purpose": "涵盖 HRPOptimizer（分层风险预算：距离矩阵、单联动聚类、准对角线化、递归二分法——无需矩阵求逆）和 BlackLittermanOptimizer（先验均衡收益率、观点 Q/P/Omega、Idzorek 简化模型、后验预期收益公式）。",
-      "parent": "组合优化",
+      "title": "HRP and Black-Litterman Optimizers",
+      "purpose": "Covers HRPOptimizer (distance matrix, single-linkage clustering, quasi-diagonalization, recursive bisection — no matrix inversion required), and BlackLittermanOptimizer (prior equilibrium returns, views Q/P/Omega, Idzorek simplification, posterior expected return formula).",
+      "parent": "Portfolio Optimization",
       "page_notes": [
         {
           "content": ""
@@ -132,8 +132,8 @@
       ]
     },
     {
-      "title": "穿透式分析",
-      "purpose": "look_through 模块概述：用于将基金组合分解为底层因子/行业暴露，包含两种分析方法和标准化的 ExposureResult 输出。提供指向 HBA 和 RBSA 的链接。",
+      "title": "Look-Through Analysis",
+      "purpose": "Overview of the look_through module: its purpose for decomposing fund portfolios into underlying factor/sector exposures, the two analysis methods, and the standardized ExposureResult output. Links to child pages for HBA and RBSA.",
       "page_notes": [
         {
           "content": ""
@@ -141,9 +141,9 @@
       ]
     },
     {
-      "title": "LookThroughAnalyzer 门面与暴露结果",
-      "purpose": "描述 LookThroughAnalyzer 工厂/门面类（方法选择：HBA 对比 RBSA，run() 接口）、ExposureResult 数据类（基金代码、分析日期、方法、暴露字典、R方值），以及下游代码如何统一调用结果。",
-      "parent": "穿透式分析",
+      "title": "LookThroughAnalyzer Facade and ExposureResult",
+      "purpose": "Describes the LookThroughAnalyzer factory/facade class (method selection: HBA vs RBSA, run() interface), the ExposureResult dataclass (fund_code, analysis_date, method, exposures dict, r_squared), and how downstream code consumes results uniformly.",
+      "parent": "Look-Through Analysis",
       "page_notes": [
         {
           "content": ""
@@ -151,9 +151,9 @@
       ]
     },
     {
-      "title": "HBA 引擎与 RBSA 引擎",
-      "purpose": "详述 HBAEngine（HBASymbolResolver、持仓 DataFrame 结构、权重归一化、行业/风格的分组聚合）和 RBSAEngine（夏普方法、SLSQP 优化、总和为一及仅做多约束、R方计算、滚动窗口支持）。",
-      "parent": "穿透式分析",
+      "title": "HBA Engine and RBSA Engine",
+      "purpose": "Details HBAEngine (HBASymbolResolver, holdings DataFrame schema, weight normalization, groupby aggregation for industry/style), and RBSAEngine (Sharpe's method, SLSQP optimization, sum-to-one and long-only constraints, R-squared calculation, rolling window support).",
+      "parent": "Look-Through Analysis",
       "page_notes": [
         {
           "content": ""
@@ -161,8 +161,8 @@
       ]
     },
     {
-      "title": "执行层",
-      "purpose": "执行模块概述：内部订单如何转换为机构交易文件。包含指向 OTCExecutor API 和 O32 集成的子页面链接。",
+      "title": "Execution Layer",
+      "purpose": "Overview of the execution module: how internal orders are translated into institutional trade files. Links to child pages for the OTCExecutor API and O32 integration.",
       "page_notes": [
         {
           "content": ""
@@ -171,8 +171,8 @@
     },
     {
       "title": "OTCExecutor API",
-      "purpose": "涵盖 OTCExecutor 高层级 API（买入/卖出/清仓/执行方法）、订单累积模式、多渠道分发（O32 和微信）、微信理财通 CSV 导出（UTF-8-SIG 编码），以及输出目录/后缀剥离配置。",
-      "parent": "执行层",
+      "purpose": "Covers the OTCExecutor high-level API (buy/sell/clear/execute methods), order accumulation pattern, multi-channel dispatch (o32 and wechat), WeChat LiCaiTong CSV export (UTF-8-SIG encoding), and the output_dir/strip_suffix configuration.",
+      "parent": "Execution Layer",
       "page_notes": [
         {
           "content": ""
@@ -180,9 +180,9 @@
       ]
     },
     {
-      "title": "O32OrderExporter 与恒生系统集成",
-      "purpose": "详细介绍 O32OrderExporter：from_orders() 与 from_trades() 的分发、方向映射（BUY→申购，SELL→赎回）、列名重命名为中文 O32 表头（证券代码、业务类别、组合编号、资产单元）、Windows 兼容的 GBK 编码，以及 Excel 导出支持。",
-      "parent": "执行层",
+      "title": "O32OrderExporter and Hundsun Integration",
+      "purpose": "Details O32OrderExporter: from_orders() vs from_trades() dispatch, direction mapping (BUY→申购, SELL→赎回), column renaming to Chinese O32 headers (证券代码, 业务类别, 组合编号, 资产单元), GBK encoding for Windows compatibility, and Excel export support.",
+      "parent": "Execution Layer",
       "page_notes": [
         {
           "content": ""
@@ -190,8 +190,8 @@
       ]
     },
     {
-      "title": "可视化与报表",
-      "purpose": "可视化模块概述：回测后表现分析、指标计算和多格式报告生成。包含指向指标和绘图的子页面链接。",
+      "title": "Visualization and Reporting",
+      "purpose": "Overview of the visualizer module: post-backtest performance analysis, metric calculation, and multi-format report generation. Links to child pages for metrics and plotting.",
       "page_notes": [
         {
           "content": ""
@@ -199,9 +199,9 @@
       ]
     },
     {
-      "title": "CJQuantReporter 与报表生成",
-      "purpose": "涵盖 CJQuantReporter（统计 CSV + 交易 CSV 摄取，generate_html/generate_png/generate_pdf 方法）、嵌入 Plotly 的 HTML 模板、img2pdf 软依赖，以及 Matplotlib 的中文字体配置（黑体 SimHei）。",
-      "parent": "可视化与报表",
+      "title": "CJQuantReporter and Report Generation",
+      "purpose": "Covers CJQuantReporter (stats_csv + trades_csv ingestion, generate_html/generate_png/generate_pdf methods), the HTML template with embedded Plotly, img2pdf soft dependency, and Chinese font configuration (SimHei) for Matplotlib.",
+      "parent": "Visualization and Reporting",
       "page_notes": [
         {
           "content": ""
@@ -209,9 +209,9 @@
       ]
     },
     {
-      "title": "质量指标与报表绘图器",
-      "purpose": "详细介绍 QualityMetrics（夏普、索提诺、卡玛比率、最大回撤计算，252天年化，2%无风险利率）、ReportPlotter 交互式 Plotly 子图（净值、回撤、资产构成堆积面积图、日收益率）以及静态 Matplotlib 摘要（月度收益热力图、换手率柱状图）。",
-      "parent": "可视化与报表",
+      "title": "QualityMetrics and ReportPlotter",
+      "purpose": "Details QualityMetrics (Sharpe, Sortino, Calmar, Max Drawdown calculations, 252-day annualization, 2% risk-free rate), ReportPlotter interactive Plotly subplots (NAV, drawdown, asset composition stacked area, daily returns), and static Matplotlib summary (monthly return heatmap, turnover bar chart).",
+      "parent": "Visualization and Reporting",
       "page_notes": [
         {
           "content": ""
@@ -219,8 +219,8 @@
       ]
     },
     {
-      "title": "投研终端",
-      "purpose": "FastAPI Web 终端（app/ 目录）概述：其作为 cjquant 库与浏览器 UI 之间的集成层、桌面 GUI 包装器以及策略调度器的角色。包含子页面链接。",
+      "title": "Web Terminal and Application Layer",
+      "purpose": "Overview of the FastAPI web terminal (app/): its role as the integration layer between the cjquant library and the browser-based UI, the desktop GUI wrapper, and the strategy scheduler. Links to child pages.",
       "page_notes": [
         {
           "content": ""
@@ -228,9 +228,9 @@
       ]
     },
     {
-      "title": "FastAPI 后端 (app/main.py)",
-      "purpose": "涵盖所有 REST API 端点：策略管理、任务调度（查看、切换、运行、日志）、组合操作（获取组合、更新、刷新净值）、分析端点（优化、相关性、表现、穿透分析、回测）、BacktestContext 代理类，以及带模拟收益的数据降级机制。",
-      "parent": "投研终端",
+      "title": "FastAPI Backend (app/main.py)",
+      "purpose": "Covers all REST API endpoints: strategy management (GET/PUT/POST /api/strategies), task scheduler (GET/POST /api/tasks, toggle, run, logs), portfolio operations (GET /api/portfolio, update, refresh_navs), analytics endpoints (optimize, correlation, performance, look_through, backtest), the BacktestContext proxy class, and the data fallback mechanism with simulated returns.",
+      "parent": "Web Terminal and Application Layer",
       "page_notes": [
         {
           "content": ""
@@ -238,9 +238,9 @@
       ]
     },
     {
-      "title": "策略调度器与闭环组合同步",
-      "purpose": "解释 scheduler_loop 异步后台任务、tasks.json 结构（名称、策略文件、调度类型、值、启用状态、上次运行时间）、通过 asyncio 产生的子进程隔离、日志流式传输，以及针对 O32 和微信 CSV 摄取的同步机制（文件监听）。",
-      "parent": "投研终端",
+      "title": "Strategy Scheduler and Closed-Loop Portfolio Sync",
+      "purpose": "Explains the scheduler_loop async background task, tasks.json schema (name, strategy_file, schedule_type, schedule_value, enabled, status, last_run), subprocess isolation via asyncio.create_subprocess_exec, log streaming, and the sync_exported_orders_to_portfolio file-watch mechanism for O32 and WeChat CSV ingestion.",
+      "parent": "Web Terminal and Application Layer",
       "page_notes": [
         {
           "content": ""
@@ -248,9 +248,9 @@
       ]
     },
     {
-      "title": "前端 UI：HTML, JavaScript 与 CSS",
-      "purpose": "涵盖单页面应用（SPA）架构（标签页导航）、app.js 轮询与状态管理、自定义 SVG 回测图表、研究池响应式模式、相关性热力图渲染器，以及仿 QMT 风格的 CSS 设计系统（扁平/直角美学，中国 A 股红绿配色惯例）。",
-      "parent": "投研终端",
+      "title": "Frontend UI: HTML, JavaScript, and CSS",
+      "purpose": "Covers the SPA architecture (tab-based navigation), app.js polling and state management (portfolioPollingInterval, logPollingInterval), the custom SVG backtest chart (drawBacktestChart), the Research Fund Pool reactive pattern (renderResearchFundPool), the correlation heatmap renderer, and the QMT-style CSS design system (flat/square aesthetic, Chinese A-share color conventions).",
+      "parent": "Web Terminal and Application Layer",
       "page_notes": [
         {
           "content": ""
@@ -258,9 +258,9 @@
       ]
     },
     {
-      "title": "桌面 GUI 启动器",
-      "purpose": "描述 run_gui.py 和 app/gui.py：基于 pywebview 的桌面包装器、端口检测、uvicorn 子进程管理、健康检查重试循环、优雅停机（terminate/kill 备选方案），以及 1366x850 的窗口配置。",
-      "parent": "投研终端",
+      "title": "Desktop GUI Launcher",
+      "purpose": "Describes run_gui.py and app/gui.py: the pywebview-based desktop wrapper, port detection (is_port_open), uvicorn subprocess management, health-check retry loop, graceful shutdown with terminate/kill fallback, and the 1366x850 window configuration.",
+      "parent": "Web Terminal and Application Layer",
       "page_notes": [
         {
           "content": ""
@@ -268,8 +268,8 @@
       ]
     },
     {
-      "title": "示例策略",
-      "purpose": "app/strategies/ 中捆绑的策略脚本概述：它们作为用户的可执行入口点和模板。包含每个策略的子页面链接。",
+      "title": "Example Strategies",
+      "purpose": "Overview of the bundled strategy scripts in app/strategies/: their role as runnable entrypoints and templates for users. Links to child pages for each strategy.",
       "page_notes": [
         {
           "content": ""
@@ -277,9 +277,9 @@
       ]
     },
     {
-      "title": "风险平价再平衡与穿透式监控",
-      "purpose": "详细介绍 risk_parity_rebalance.py（运行流水线：数据准备 → 优化 → 执行 → 导出）和 otc_look_through_monitor.py（监控流水线：持仓摄取 → HBA 分析 → 阈值合规检查）。涵盖 sys.path 路径注入模式。",
-      "parent": "示例策略",
+      "title": "Risk Parity Rebalance and Look-Through Monitor",
+      "purpose": "Details risk_parity_rebalance.py (run_strategy pipeline: data prep → RiskParityOptimizer → OTCExecutor → o32/wechat export) and otc_look_through_monitor.py (run_monitor pipeline: holdings ingestion → LookThroughAnalyzer HBA → threshold compliance check). Covers sys.path injection pattern.",
+      "parent": "Example Strategies",
       "page_notes": [
         {
           "content": ""
@@ -287,9 +287,9 @@
       ]
     },
     {
-      "title": "回测演示与自定义策略模板",
-      "purpose": "涵盖 backtest_demo.py（作为 app/main.py 中 BacktestContext 所使用的 init/handle_bar 接口的参考实现），以及“永久投资组合.py”（作为买入持有型资产配置的示例）。",
-      "parent": "示例策略",
+      "title": "Backtest Demo and Custom Strategy Template",
+      "purpose": "Covers backtest_demo.py as a reference implementation for the init(context)/handle_bar(context) strategy interface used by the BacktestContext proxy in app/main.py, and the 永久投资组合.py (Permanent Portfolio) strategy as an example of a buy-and-hold allocation.",
+      "parent": "Example Strategies",
       "page_notes": [
         {
           "content": ""
